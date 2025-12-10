@@ -10,8 +10,21 @@ A simple TUI (Terminal User Interface) helper script to quickly stream or downlo
 - **Stream Audio**: Listen to audio-only in `mpv`, perfect for podcasts or music.
 - **Download Video**: Choose from a list of available video resolutions and download the best quality version, which is then merged with the best audio track into an MP4 file.
 - **Download Audio**: Download the best audio available and convert it to the efficient `opus` format.
+- **Playlist Support**: Automatically detects playlists and offers options to stream or download the entire list, with files named and numbered to preserve the correct order.
 - **Clipboard Detection**: Automatically grabs a YouTube URL from your clipboard to speed up your workflow.
 - **Interactive Menu**: A clean, interactive menu system powered by `gum`.
+
+## Playlist Support
+
+The script intelligently detects if the provided URL is a playlist (by checking for `list=` in the URL). When a playlist is detected, the menu adapts to offer playlist-specific actions:
+
+- **Stream Full Playlist**: Open the entire playlist directly in `mpv` (video or audio-only).
+- **Download Full Playlist**: 
+    - Downloads all videos (or audio tracks) in the playlist.
+    - Creates a subfolder named after the playlist.
+    - Files are automatically numbered (e.g., `01 - Title.mp4`, `02 - Title.mp4`) to ensure they sort correctly according to the playlist order.
+    - Video downloads automatically select the best MP4 quality.
+    - Audio downloads are converted to `opus`.
 
 ## Scripts
 
