@@ -76,3 +76,7 @@ sudo apt install gum yt-dlp mpv ffmpeg xclip
    ./yt-helper-mac.sh
    ```
 4. Paste a YouTube URL or let the script pick it up from your clipboard, and choose your desired action from the menu.
+
+## Disclaimer
+
+This script is created solely for educational purposes to demonstrate shell scripting and TUI creation with `gum`. It is **not** intended to be used for downloading copyrighted content without permission. Users are responsible for complying with YouTube's Terms of Service and all applicable copyright laws. Please respect content creators and their work.
