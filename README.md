@@ -30,8 +30,8 @@ The script intelligently detects if the provided URL is a playlist (by checking 
 
 This repository contains two versions of the script:
 
-- **`yt-helper.v1.sh`**: The main script, intended for **Linux** users (using `wl-paste` or `xclip`).
-- **`yt-helper-mac.sh`**: A specific version for **macOS** users (using `pbpaste`). *Note: This script is a work in progress and has not been fully tested yet.*
+- **`quicktube.v1.sh`**: The main script, intended for **Linux** users (using `wl-paste` or `xclip`).
+- **`quicktube-mac.sh`**: A specific version for **macOS** users (using `pbpaste`). *Note: This script is a work in progress and has not been fully tested yet.*
 
 ## Dependencies
 
@@ -62,18 +62,18 @@ sudo apt install gum yt-dlp mpv ffmpeg xclip
 2. Make the script executable:
    ```bash
    # For Linux
-   chmod +x yt-helper.v1.sh
+   chmod +x quicktube.v1.sh
 
    # For macOS
-   chmod +x yt-helper-mac.sh
+   chmod +x quicktube-mac.sh
    ```
 3. Run the script:
    ```bash
    # For Linux
-   ./yt-helper.v1.sh
+   ./quicktube.v1.sh
 
    # For macOS
-   ./yt-helper-mac.sh
+   ./quicktube-mac.sh
    ```
 4. Paste a YouTube URL or let the script pick it up from your clipboard, and choose your desired action from the menu.
 
