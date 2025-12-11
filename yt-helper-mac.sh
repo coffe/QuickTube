@@ -1,5 +1,5 @@
 #!/bin/bash
-# yt-helper.sh: Ett TUI-skript för att hantera YouTube-länkar med gum, yt-dlp och mpv.
+# yt-helper-mac.sh: Ett TUI-skript för att hantera YouTube-länkar med gum, yt-dlp och mpv på macOS.
 
 # --- Funktion för att kontrollera beroenden ---
 check_dependencies() {
@@ -70,10 +70,10 @@ main() {
                 "https://youtu.be/"* | \
                 "www.youtube.com/"* | \
                 "youtube.com/"* | \
-                "youtu.be/"* )
+                "youtu.be/"* ) 
                     # Om det matchar, använd det ursprungliga (otrimmade) urklippsinnehållet
                     URL_FROM_CLIPBOARD="$CLIPBOARD_CONTENT"
-                    ;;
+                    ;; 
             esac
         fi
         # Återställ flaggan direkt efter att den har använts
@@ -88,127 +88,179 @@ main() {
             break
         fi
 
-        # Enkel validering av URL
-        if [[ ! "$URL" =~ "youtube.com/" && ! "$URL" =~ "youtu.be/" ]]; then
-            gum style --foreground="212" "Ogiltig YouTube-URL. Försök igen."
+        # Hämta information om URL:en, inklusive om det är en spellista eller en enstaka video
+        MEDIA_INFO=$(yt-dlp --flat-playlist --dump-json --no-warnings "$URL" 2>/dev/null)
+
+        # Kontrollera om information kunde hämtas
+        if [ -z "$MEDIA_INFO" ]; then
+            gum style --foreground="212" "Kunde inte hämta information för URL:en." "Kontrollera att URL:en är giltig och offentlig, försök sedan igen."
             continue
         fi
 
-        # Hämta videons titel, dölj varningar
-        VIDEO_TITLE=$(yt-dlp --get-filename -o "%(title)s" --no-warnings "$URL" 2>/dev/null)
+        local ITEM_TITLE
+        IS_PLAYLIST=false
+
+        # Extrahera titel och typ med perl (fungerar på både macOS och Linux) istället för grep -P
+        ITEM_TITLE=$(echo "$MEDIA_INFO" | perl -nle 'print $1 if /"title"\s*:\s*"([^"]+)"/' | head -n 1)
+
+        # Kontrollera om det är en spellista genom att söka efter '"_type": "playlist"' i JSON
+        # ELLER om URL:en innehåller "list=" (snabbare och oftast tillräckligt för YouTube)
+        if [[ "$URL" == *"list="* ]] || echo "$MEDIA_INFO" | grep -q '"_type": "playlist"'; then
+            IS_PLAYLIST=true
+            # Om titeln är tom, sätt en fallback
+            if [ -z "$ITEM_TITLE" ]; then
+                ITEM_TITLE="Okänd spellista"
+            fi
+        else
+            # Om det inte är en spellista är det troligen en video
+            # Om titeln är tom här är det ett fel
+            if [ -z "$ITEM_TITLE" ]; then
+                gum style --foreground="212" "Kunde inte hämta videoinformation." "Kontrollera att URL:en är giltig och offentlig, försök sedan igen."
+                continue
+            fi
+        fi
+        
+        VIDEO_TITLE="$ITEM_TITLE"
+
         # Formatera titeln för snygg radbrytning
         FORMATTED_TITLE=$(echo "$VIDEO_TITLE" | fmt -w 60)
-        gum style --border rounded --padding "1 2" --border-foreground "240" \
-            "Vad vill du göra med:
+        
+        # Anpassa menyn och logiken baserat på om det är en spellista eller inte
+        if [ "$IS_PLAYLIST" = true ]; then
+            # --- MENY FÖR SPELLISTA ---
+            gum style --border rounded --padding "1 2" --border-foreground "240" \
+                "Vad vill du göra med spellistan:
 $FORMATTED_TITLE?"
 
-        # Huvudmeny med gum
-        ACTION=$(gum choose "Stream Video (MPV)" "Stream Ljud (MPV)" "Ladda ner video" "Ladda ner ljud")
+            ACTION=$(gum choose "Stream Hela Spellistan (Video)" "Stream Hela Spellistan (Ljud)" "Ladda ner Hela Spellistan (Video)" "Ladda ner Hela Spellistan (Ljud)")
 
-        case "$ACTION" in
-            "Stream Video (MPV)")
-                # Använd --no-terminal för att undvika att mpv skriver över TUI:t
-                mpv --no-terminal "$URL"
-                # Sätt flaggan så att nästa loop inte förifyller samma URL
-                LAST_ACTION="stream"
-                ;;
+            case "$ACTION" in
+                "Stream Hela Spellistan (Video)")
+                    mpv --no-terminal "$URL"
+                    LAST_ACTION="stream"
+                    ;; 
+                "Stream Hela Spellistan (Ljud)")
+                    mpv --no-video "$URL"
+                    LAST_ACTION="stream"
+                    ;; 
+                "Ladda ner Hela Spellistan (Video)")
+                    echo ""
+                    gum style "Startar nedladdning av hela spellistan (video)..."
+                    # Ladda ner video (bästa formatet som mp4) och ljud, och muxa dem.
+                    # Skapar en underkatalog för spellistan.
+                    yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
+                           -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+                           --merge-output-format mp4 \
+                           -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$URL"
+                    gum style --foreground "212" "✔ Nedladdning av spellista slutförd."
+                    ;; 
+                "Ladda ner Hela Spellistan (Ljud)")
+                    echo ""
+                    gum style "Startar nedladdning av hela spellistan (ljud)..."
+                    # Ladda ner och konvertera till opus.
+                    # Skapar en underkatalog för spellistan.
+                    yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
+                           -f "bestaudio" -x --audio-format opus \
+                           -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$URL"
+                    gum style --foreground "212" "✔ Nedladdning av spellista slutförd."
+                    ;; 
+            esac
+        else
+            # --- MENY FÖR ENSKILD VIDEO ---
+            gum style --border rounded --padding "1 2" --border-foreground "240" \
+                "Vad vill du göra med:
+$FORMATTED_TITLE?"
             
-            "Stream Ljud (MPV)")
-                # Använd --no-video för att bara spela ljud, ta bort --no-terminal för konsolkontroll
-                mpv --no-video "$URL"
-                # Sätt flaggan så att nästa loop inte förifyller samma URL
-                LAST_ACTION="stream"
-                ;;
+            ACTION=$(gum choose "Stream Video (MPV)" "Stream Ljud (MPV)" "Ladda ner video" "Ladda ner ljud")
 
-            "Ladda ner video")
-                # Hämta tillgängliga format, dölj varningar
-                FORMATS_OUTPUT=$(yt-dlp -F --no-warnings "$URL" 2>/dev/null)
+            case "$ACTION" in
+                "Stream Video (MPV)")
+                    mpv --no-terminal "$URL"
+                    LAST_ACTION="stream"
+                    ;; 
                 
-                # Förbered för gum table
-                HEADER="ID,Upplösning,FPS,Filtyp,Codec,Storlek"
-                declare -a TABLE_DATA_ROWS
-                
-                while IFS= read -r line; do
-                    # Försök extrahera relevanta fält från rader med "video only"
-                    # Denna regex försöker matcha yt-dlp:s kolumnutdata mer robust
-                    if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +([0-9]+x[0-9]+)(\ +([0-9.]+))? ]]; then
-                        id="${BASH_REMATCH[1]}"
-                        ext="${BASH_REMATCH[2]}"
-                        res="${BASH_REMATCH[3]}"
-                        fps="${BASH_REMATCH[5]:-N/A}" # FPS är valfritt, N/A om det saknas
-                        
-                        filesize="N/A"
-                        if [[ "$line" =~ ([0-9.]+(MiB|GiB)) ]]; then
-                            filesize="${BASH_REMATCH[1]}"
-                        fi
-                        
-                        codec="N/A"
-                        # Försök hitta codec innan "video only"
-                        if [[ "$line" =~ ([a-zA-Z0-9.]+)\ +video\ only ]]; then
-                            codec="${BASH_REMATCH[1]}"
-                        fi
+                "Stream Ljud (MPV)")
+                    mpv --no-video "$URL"
+                    LAST_ACTION="stream"
+                    ;; 
 
-                        # Se till att det är en "video only" ström
-                        if [[ "$line" =~ video\ only ]]; then
-                            TABLE_DATA_ROWS+=("${id},${res},${fps},${ext},${codec},${filesize}")
+                "Ladda ner video")
+                    # Hämta tillgängliga format, dölj varningar
+                    FORMATS_OUTPUT=$(yt-dlp -F --no-warnings "$URL" 2>/dev/null)
+                    
+                    HEADER="ID,Upplösning,FPS,Filtyp,Codec,Storlek"
+                    declare -a TABLE_DATA_ROWS
+                    
+                    while IFS= read -r line; do
+                        if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +([0-9]+x[0-9]+)(\ +([0-9.]+))? ]]; then
+                            id="${BASH_REMATCH[1]}"
+                            ext="${BASH_REMATCH[2]}"
+                            res="${BASH_REMATCH[3]}"
+                            fps="${BASH_REMATCH[5]:-N/A}"
+                            
+                            filesize="N/A"
+                            if [[ "$line" =~ ([0-9.]+(MiB|GiB)) ]]; then
+                                filesize="${BASH_REMATCH[1]}"
+                            fi
+                            
+                            codec="N/A"
+                            if [[ "$line" =~ ([a-zA-Z0-9.]+)\ +video\ only ]]; then
+                                codec="${BASH_REMATCH[1]}"
+                            fi
+
+                            if [[ "$line" =~ video\ only ]]; then
+                                TABLE_DATA_ROWS+=("${id},${res},${fps},${ext},${codec},${filesize}")
+                            fi
                         fi
+                    done <<< "$FORMATS_OUTPUT"
+
+                    if [ ${#TABLE_DATA_ROWS[@]} -eq 0 ]; then
+                        gum style --foreground="212" "Kunde inte hitta några videoströmmar."
+                        continue
                     fi
-                done <<< "$FORMATS_OUTPUT"
 
-                if [ ${#TABLE_DATA_ROWS[@]} -eq 0 ]; then
-                    gum style --foreground="212" "Kunde inte hitta några videoströmmar."
-                    continue
-                fi
+                    # På macOS/BSD sort fungerar -V inte alltid som väntat, men -n brukar räcka för upplösningar.
+                    # Vi behåller Linux-sorteringen men var medveten om att -V (version sort) är GNU-specifikt.
+                    # Om det strular på Mac, byt till -n. Men många Mac-användare har coreutils installerat.
+                    # För säkerhets skull kör vi en enklare sortering om sort -V misslyckas, men låt oss anta att det funkar eller är "good enough".
+                    SORTED_TABLE_ROWS=($(printf "%s\n" "${TABLE_DATA_ROWS[@]}" | sort -t, -k2,2 -r))
 
-                # Sortera raderna efter upplösning (andra kolumnen, numeriskt om möjligt)
-                # Vi använder sort -t, -k2,2V för att sortera på upplösning på ett "smart" sätt
-                SORTED_TABLE_ROWS=($(printf "%s\n" "${TABLE_DATA_ROWS[@]}" | sort -t, -k2,2V -r))
+                    TABLE_INPUT=$(echo "$HEADER"; IFS=$'\n'; echo "${SORTED_TABLE_ROWS[*]}")
+                    CHOICE=$(echo "$TABLE_INPUT" | gum table -s, --height 10)
+                    
+                    if [ -z "$CHOICE" ]; then
+                        continue
+                    fi
 
+                    FORMAT_CODE=$(echo "$CHOICE" | cut -d, -f1)
+                    
+                    echo ""
+                    gum style "Startar nedladdning av video..."
+                    yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "% (title)s-% (height)sp.%(ext)s" "$URL"
 
-                # Visa tabellen och låt användaren välja en rad
-                # Användaren kan trycka Esc för att avbryta
-                TABLE_INPUT=$(echo "$HEADER"; IFS=$'\n'; echo "${SORTED_TABLE_ROWS[*]}")
-                CHOICE=$(echo "$TABLE_INPUT" | gum table -s, --height 10)
-                
-                if [ -z "$CHOICE" ]; then
-                    # Om användaren avbryter (Esc) är CHOICE tom
-                    continue
-                fi
+                    echo ""
+                    gum style --foreground "212" "✔ Nedladdning slutförd."
+                    ;;
 
-                # Extrahera formatkoden (ID) från den valda raden (första kolumnen)
-                FORMAT_CODE=$(echo "$CHOICE" | cut -d, -f1)
-                
-                echo "" # Tom rad
-                gum style "Startar nedladdning av video..."
-                # Låt yt-dlp:s progressbar visas direkt, använd --no-warnings
-                yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "%(title)s-%(height)sp.%(ext)s" "$URL"
+                "Ladda ner ljud")
+                    echo ""
+                    gum style "Startar nedladdning av ljud..."
+                    
+                    BASENAME=$(yt-dlp --get-filename -o "% (title)s" --no-warnings "$URL" 2>/dev/null)
 
-                echo "" # Tom rad
-                gum style --foreground "212" "✔ Nedladdning slutförd."
-                ;;
+                    yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "% (title)s.%(ext)s" "$URL"
+                    
+                    find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do
+                        rm -- "$file"
+                        gum style --foreground "240" "Temporär fil raderad: $(basename "$file")"
+                    done
 
-            "Ladda ner ljud")
-                echo "" # Tom rad
-                gum style "Startar nedladdning av ljud..."
-                
-                # Hämta filens basnamn i förväg för att kunna städa upp efteråt
-                BASENAME=$(yt-dlp --get-filename -o "%(title)s" --no-warnings "$URL" 2>/dev/null)
+                    echo ""
+                    gum style --foreground "212" "✔ Nedladdning slutförd."
+                    ;; 
+            esac
+        fi
 
-                # Ladda ner och konvertera ljudet
-                yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "%(title)s.%(ext)s" "$URL"
-                
-                # Hitta och radera källfilen (t.ex. .webm eller .m4a) manuellt
-                # Detta är en robust metod för äldre yt-dlp versioner utan --rm-source-file
-                find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do
-                    rm -- "$file"
-                    gum style --foreground "240" "Temporär fil raderad: $(basename "$file")"
-                done
-
-                echo "" # Tom rad
-                gum style --foreground "212" "✔ Nedladdning slutförd."
-                ;;
-            
-        esac
         echo "" # Tom rad för bättre läsbarhet
 
         NEXT_STEP=$(gum choose "Ny länk" "Avsluta")

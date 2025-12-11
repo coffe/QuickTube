@@ -31,7 +31,7 @@ The script intelligently detects if the provided URL is a playlist (by checking 
 This repository contains two versions of the script:
 
 - **`yt-helper.v1.sh`**: The main script, intended for **Linux** users (using `wl-paste` or `xclip`).
-- **`yt-helper-mac.sh`**: A specific version for **macOS** users (using `pbpaste`).
+- **`yt-helper-mac.sh`**: A specific version for **macOS** users (using `pbpaste`). *Note: This script is a work in progress and has not been fully tested yet.*
 
 ## Dependencies
 
