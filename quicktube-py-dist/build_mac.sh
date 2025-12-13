@@ -12,17 +12,23 @@ curl -L -o bin_mac/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/downl
 chmod +x bin_mac/yt-dlp
 
 # 2. svtplay-dl
-# Försöker ladda ner binär. Om detta misslyckas kan det vara bättre att be användaren installera via brew.
 echo "Laddar ner svtplay-dl..."
 curl -L -o svtplay-dl.zip https://github.com/spaam/svtplay-dl/releases/latest/download/svtplay-dl.zip
 unzip -o svtplay-dl.zip -d bin_mac/
-# Om zippen packade upp en binär, gör den körbar.
-if [ -f "bin_mac/svtplay-dl" ]; then
+
+# Hitta och flytta binären (oavsett mappstruktur i zip)
+find bin_mac -type f -name "svtplay-dl" -exec mv {} bin_mac/svtplay-dl_temp \;
+
+if [ -f "bin_mac/svtplay-dl_temp" ]; then
+    mv bin_mac/svtplay-dl_temp bin_mac/svtplay-dl
     chmod +x bin_mac/svtplay-dl
+    echo "Hittade och förberedde svtplay-dl."
 else
-    echo "VARNING: Kunde inte hitta svtplay-dl binär direkt. Kontrollera bin_mac mappen."
+    echo "VARNING: Kunde inte hitta 'svtplay-dl' binär i zip-filen. Bygget kan sakna den."
 fi
 rm svtplay-dl.zip
+# Städa upp ev mappar från zip (men spara yt-dlp som vi redan lagt där)
+find bin_mac -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
 
 # 3. gum
 ARCH=$(uname -m)
