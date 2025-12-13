@@ -1,0 +1,23 @@
+# Backups
+*.backup.*
+*.bak
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# QuickTube Python build artifacts
+quicktube-py-dist/venv/
+quicktube-py-dist/build/
+quicktube-py-dist/dist/
+quicktube-py-dist/bin/
+quicktube-py-dist/bin_mac/
+
+# Archives
+*.7z
+*.zip
+*.tar.gz
+
+# System files
+.DS_Store
