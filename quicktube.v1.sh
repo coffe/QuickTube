@@ -39,6 +39,19 @@ then
     fi
 }
 
+COOKIE_ARGS=()
+
+select_cookie_browser() {
+    BROWSER=$(gum choose "Ingen (Standard)" "chrome" "firefox" "brave" "edge" "safari" "opera" "vivaldi" "chromium")
+    if [ "$BROWSER" != "Ingen (Standard)" ]; then
+        COOKIE_ARGS=("--cookies-from-browser" "$BROWSER")
+        gum style --foreground "212" "Webbläsare vald: $BROWSER"
+    else
+        COOKIE_ARGS=()
+        gum style --foreground "212" "Cookies inaktiverade."
+    fi
+}
+
 # Huvudfunktion
 main() {
     check_dependencies
@@ -133,7 +146,7 @@ Vad vill du göra?"
                 "Ladda ner Hela Serien (yt-dlp)")
                     echo ""
                     gum style "Startar nedladdning av hela serien med yt-dlp..."
-                    yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
+                    yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                            --embed-subs --write-subs --sub-langs all \
                            -o '%(series)s/S%(season_number)02dE%(episode_number)02d - %(title)s.%(ext)s' \
                            "$URL"
@@ -151,7 +164,7 @@ Vad vill du göra?"
                     if [ -n "$ITEMS" ]; then
                         echo ""
                         gum style "Laddar ner avsnitt $ITEMS med yt-dlp..."
-                        yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
+                        yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                                --embed-subs --write-subs --sub-langs all \
                                --playlist-items "$ITEMS" \
                                -o '%(series)s/S%(season_number)02dE%(episode_number)02d - %(title)s.%(ext)s' \
@@ -201,7 +214,7 @@ Vad vill du göra?"
             # --- YOUTUBE LOGIK (Befintlig) ---
             
             # Hämta information om URL:en
-            MEDIA_INFO=$(yt-dlp --flat-playlist --dump-json --no-warnings "$URL" 2>/dev/null)
+            MEDIA_INFO=$(yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --dump-json --no-warnings "$URL" 2>/dev/null)
 
             # Kontrollera om information kunde hämtas
             if [ -z "$MEDIA_INFO" ]; then
@@ -249,7 +262,7 @@ $FORMATTED_TITLE?"
                     "Ladda ner Hela Spellistan (Video)")
                         echo ""
                         gum style "Startar nedladdning av hela spellistan (video)..."
-                        yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
+                        yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                                -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                                --merge-output-format mp4 \
                                -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$URL"
@@ -258,7 +271,7 @@ $FORMATTED_TITLE?"
                     "Ladda ner Hela Spellistan (Ljud)")
                         echo ""
                         gum style "Startar nedladdning av hela spellistan (ljud)..."
-                        yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
+                        yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                                -f "bestaudio" -x --audio-format opus \
                                -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$URL"
                         gum style --foreground "212" "✔ Nedladdning av spellista slutförd."
@@ -284,7 +297,7 @@ $FORMATTED_TITLE?"
                         ;;
 
                     "Ladda ner video")
-                        FORMATS_OUTPUT=$(yt-dlp -F --no-warnings "$URL" 2>/dev/null)
+                        FORMATS_OUTPUT=$(yt-dlp "${COOKIE_ARGS[@]}" -F --no-warnings "$URL" 2>/dev/null)
                         
                         HEADER="ID,Upplösning,FPS,Filtyp,Codec,Storlek"
                         declare -a TABLE_DATA_ROWS
@@ -330,7 +343,7 @@ $FORMATTED_TITLE?"
                         
                         echo ""
                         gum style "Startar nedladdning av video..."
-                        yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "% (title)s-%(height)sp.%(ext)s" "$URL"
+                        yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "% (title)s-%(height)sp.%(ext)s" "$URL"
 
                         echo ""
                         gum style --foreground "212" "✔ Nedladdning slutförd."
@@ -340,9 +353,9 @@ $FORMATTED_TITLE?"
                         echo ""
                         gum style "Startar nedladdning av ljud..."
                         
-                        BASENAME=$(yt-dlp --get-filename -o "% (title)s" --no-warnings "$URL" 2>/dev/null)
+                        BASENAME=$(yt-dlp "${COOKIE_ARGS[@]}" --get-filename -o "% (title)s" --no-warnings "$URL" 2>/dev/null)
 
-                        yt-dlp --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "% (title)s.%(ext)s" "$URL"
+                        yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "% (title)s.%(ext)s" "$URL"
                         
                         find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do
                             rm -- "$file"
@@ -358,8 +371,12 @@ $FORMATTED_TITLE?"
 
         echo "" # Tom rad för bättre läsbarhet
 
-        NEXT_STEP=$(gum choose "Ny länk" "Avsluta")
-        if [[ "$NEXT_STEP" != "Ny länk" ]]; then
+        NEXT_STEP=$(gum choose "Ny länk" "Välj webbläsare för cookies" "Avsluta")
+        
+        if [[ "$NEXT_STEP" == "Välj webbläsare för cookies" ]]; then
+            select_cookie_browser
+            continue
+        elif [[ "$NEXT_STEP" != "Ny länk" ]]; then
             break
         fi
     done
