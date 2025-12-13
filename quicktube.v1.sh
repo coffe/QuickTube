@@ -306,7 +306,7 @@ $FORMATTED_TITLE?"
                 echo ""
                 gum style "Startar nedladdning av video..."
                 # FIX: Tog bort felaktigt mellanslag i filnamnsmallen (%(title)s)
-                yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "%(title)s-%(height)sp.%(ext)s" "$url"
+                yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "% (title)s-%(height)sp.%(ext)s" "$url"
 
                 if [ $? -eq 0 ]; then
                     echo ""
@@ -365,17 +365,17 @@ main() {
                 "http://www.youtube.com/"* | \
                 "https://www.youtube.com/"* | \
                 "http://youtube.com/"* | \
-                "https://youtube.com/"* |
+                "https://youtube.com/"* | \
                 "http://youtu.be/"* | \
-                "https://youtu.be/"* |
-                "www.youtube.com/"* |
-                "youtube.com/"* |
-                "youtu.be/"* |
-                "http://www.svtplay.se/"* |
-                "https://www.svtplay.se/"* |
-                "http://svtplay.se/"* |
-                "https://svtplay.se/"* |
-                "www.svtplay.se/"* |
+                "https://youtu.be/"* | \
+                "www.youtube.com/"* | \
+                "youtube.com/"* | \
+                "youtu.be/"* | \
+                "http://www.svtplay.se/"* | \
+                "https://www.svtplay.se/"* | \
+                "http://svtplay.se/"* | \
+                "https://svtplay.se/"* | \
+                "www.svtplay.se/"* | \
                 "svtplay.se/"* ) 
                     # Om det matchar, använd det ursprungliga (otrimmade) urklippsinnehållet
                     URL_FROM_CLIPBOARD="$CLIPBOARD_CONTENT"
