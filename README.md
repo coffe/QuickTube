@@ -13,6 +13,10 @@ A simple TUI (Terminal User Interface) helper script to quickly stream or downlo
 - **Playlist Support**: Automatically detects playlists and offers options to stream or download the entire list, with files named and numbered to preserve the correct order.
 - **Clipboard Detection**: Automatically grabs a YouTube URL from your clipboard to speed up your workflow.
 - **Interactive Menu**: A clean, interactive menu system powered by `gum`.
+- **SVT Play Support**: Download videos, subtitles, and entire series from SVT Play.
+    - **Specific Episodes**: Choose specific episodes (e.g., `1-5` or `1,3`) using `yt-dlp`.
+    - **Last X Episodes**: Download the most recent episodes using `svtplay-dl`.
+    - **Subtitles**: Automatically merges subtitles into the video file.
 
 ## Playlist Support
 
@@ -39,6 +43,7 @@ Before running the script, make sure you have the following programs installed:
 
 - **[gum](https://github.com/charmbracelet/gum)**: For the interactive menus.
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**: For interacting with YouTube.
+- **[svtplay-dl](https://svtplay-dl.se/)**: For downloading content from SVT Play.
 - **[mpv](https://mpv.io/)**: For streaming video and audio.
 - **[ffmpeg](https://ffmpeg.org/)**: For merging video/audio and for audio conversion.
 
@@ -48,12 +53,12 @@ You will also need a clipboard tool:
 
 ### Installation Example (Homebrew on macOS)
 ```bash
-brew install gum yt-dlp mpv ffmpeg
+brew install gum yt-dlp svtplay-dl mpv ffmpeg
 ```
 
 ### Installation Example (APT on Debian/Ubuntu)
 ```bash
-sudo apt install gum yt-dlp mpv ffmpeg xclip
+sudo apt install gum yt-dlp svtplay-dl mpv ffmpeg xclip
 ```
 
 ## How to Use
