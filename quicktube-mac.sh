@@ -168,13 +168,14 @@ handle_youtube() {
 
     if [ -z "$MEDIA_INFO" ]; then
         gum style --foreground="212" "Kunde inte hämta information för URL:en." "Kontrollera cookies om 'Bot'-fel uppstår."
-        return 1 # Returnera felkod för att signalera "försök igen/fortsätt"
+        return 1
     else 
         local ITEM_TITLE
         IS_PLAYLIST=false
 
-        # macOS-anpassning: Använd Perl istället för grep -P
-        ITEM_TITLE=$(echo "$MEDIA_INFO" | perl -nle 'print $1 if /"title"\s*:\s*"([^"]+)"/' | head -n 1)
+        # macOS-anpassning: Använd SED istället för Perl eller grep -P
+        # Parsar JSON-liknande struktur för att hitta "title": "..."
+        ITEM_TITLE=$(echo "$MEDIA_INFO" | sed -n 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
 
         if [[ "$url" == *"list="* ]] || echo "$MEDIA_INFO" | grep -q '"_type": "playlist"'; then
             IS_PLAYLIST=true
@@ -259,11 +260,12 @@ $FORMATTED_TITLE?"
                     declare -a TABLE_DATA_ROWS
                     
                     while IFS= read -r line; do
-                        if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +([0-9]+x[0-9]+)(\ +([0-9.]+))? ]]; then
+                        # Uppdaterat regex för att vara robust (samma som Linux-versionen)
+                        if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +.*([0-9]+x[0-9]+).*([0-9.]+) ]]; then
                             id="${BASH_REMATCH[1]}"
                             ext="${BASH_REMATCH[2]}"
                             res="${BASH_REMATCH[3]}"
-                            fps="${BASH_REMATCH[5]:-N/A}"
+                            fps="${BASH_REMATCH[4]:-N/A}"
                             
                             filesize="N/A"
                             if [[ "$line" =~ ([0-9.]+(MiB|GiB)) ]]; then
@@ -299,8 +301,8 @@ $FORMATTED_TITLE?"
                     
                     echo ""
                     gum style "Startar nedladdning av video..."
-                    # FIX: Tog bort mellanslag i filnamnsmallen
-                    yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "% (title)s-%(height)sp.%(ext)s" "$url"
+                    # Korrigerat filnamn (borttaget mellanslag)
+                    yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "%(title)s-%(height)sp.%(ext)s" "$url"
                     
                     if [ $? -eq 0 ]; then
                         echo ""
@@ -315,11 +317,11 @@ $FORMATTED_TITLE?"
                     echo ""
                     gum style "Startar nedladdning av ljud..."
                     
-                    # FIX: Tog bort mellanslag i filnamnsmallen
-                    BASENAME=$(yt-dlp "${COOKIE_ARGS[@]}" --get-filename -o "% (title)s" --no-warnings "$url" 2>/dev/null)
+                    # Korrigerat filnamn (borttaget mellanslag)
+                    BASENAME=$(yt-dlp "${COOKIE_ARGS[@]}" --get-filename -o "%(title)s" --no-warnings "$url" 2>/dev/null)
 
-                    # FIX: Tog bort mellanslag i filnamnsmallen
-                    yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "% (title)s.%(ext)s" "$url"
+                    # Korrigerat filnamn (borttaget mellanslag)
+                    yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "%(title)s.%(ext)s" "$url"
                     
                     if [ $? -eq 0 ]; then
                         find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do

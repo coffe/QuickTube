@@ -9,7 +9,7 @@ LAST_ACTION=""
 check_dependencies() {
     local missing_deps=()
     # Inkludera ffmpeg och svtplay-dl i listan över obligatoriska beroenden
-    for cmd in gum yt-dlp svtplay-dl mpv ffmpeg perl; do
+    for cmd in gum yt-dlp svtplay-dl mpv ffmpeg; do 
         if ! command -v "$cmd" &> /dev/null;
 then
             missing_deps+=("$cmd")
@@ -77,7 +77,7 @@ Vad vill du göra?"
                 gum style --foreground "196" "❌ Nedladdning misslyckades."
             fi
             ;; 
-            "Ladda ner Hela Serien (-A)")
+        "Ladda ner Hela Serien (-A)")
             echo ""
             gum style "Startar nedladdning av hela serien..."
             svtplay-dl -S -M -A "$url"
@@ -89,7 +89,7 @@ Vad vill du göra?"
                  gum style --foreground "196" "❌ Nedladdning misslyckades. Prova 'yt-dlp' alternativet."
             fi
             ;; 
-            "Ladda ner Hela Serien (yt-dlp)")
+        "Ladda ner Hela Serien (yt-dlp)")
             echo ""
             gum style "Startar nedladdning av hela serien med yt-dlp..."
             yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
@@ -104,9 +104,9 @@ Vad vill du göra?"
                 gum style --foreground "196" "❌ Nedladdning misslyckades."
             fi
             ;; 
-            "Ladda ner Specifika Avsnitt (yt-dlp)")
+        "Ladda ner Specifika Avsnitt (yt-dlp)")
             echo ""
-            ITEMS=$(gum input --placeholder "Ange avsnitt (t.ex. 1, 2-5, 10)...")
+            ITEMS=$(gum input --placeholder "Ange avsnitt (t.ex. 1, 2-5, 10)..." --value "")
             if [ -n "$ITEMS" ]; then
                 echo ""
                 gum style "Laddar ner avsnitt $ITEMS med yt-dlp..."
@@ -125,9 +125,9 @@ Vad vill du göra?"
                 fi
             fi
             ;; 
-            "Ladda ner de X SISTA avsnitten (svtplay-dl)")
+        "Ladda ner de X SISTA avsnitten (svtplay-dl)")
             echo ""
-            COUNT=$(gum input --placeholder "Antal avsnitt från slutet (t.ex. 5)...")
+            COUNT=$(gum input --placeholder "Antal avsnitt från slutet (t.ex. 5)..." --value "")
             if [[ "$COUNT" =~ ^[0-9]+$ ]]; then
                 gum style "Laddar ner de sista $COUNT avsnitten..."
                 svtplay-dl -S -M -A --all-last "$COUNT" "$url"
@@ -142,12 +142,12 @@ Vad vill du göra?"
                  gum style --foreground "196" "Felaktigt antal angivet."
             fi
             ;; 
-            "Stream (MPV)")
+        "Stream (MPV)")
             # MPV hanterar oftast SVT Play-länkar direkt (via yt-dlp backend)
             mpv --no-terminal "$url"
             LAST_ACTION="stream"
             ;; 
-            "Ladda ner endast ljud")
+        "Ladda ner endast ljud")
             echo ""
             gum style "Laddar ner endast ljud..."
             svtplay-dl --only-audio "$url"
@@ -178,8 +178,8 @@ handle_youtube() {
     local ITEM_TITLE
     IS_PLAYLIST=false
 
-    # Använd Perl för robust parsning av titel som hanterar mellanslag korrekt (utan jq)
-    ITEM_TITLE=$(echo "$MEDIA_INFO" | perl -nle 'print $1 if /"title"\s*:\s*"([^"]+)"/' | head -n 1)
+    # Titelparsning med grep -oP (Linux)
+    ITEM_TITLE=$(echo "$MEDIA_INFO" | grep -oP '"title"\s*:\s*"\K[^"+' | head -n 1)
 
     if [[ "$url" == *"list="* ]] || echo "$MEDIA_INFO" | grep -q '"_type": "playlist"'; then
         IS_PLAYLIST=true
@@ -208,11 +208,11 @@ $FORMATTED_TITLE?"
                 mpv --no-terminal "$url"
                 LAST_ACTION="stream"
                 ;; 
-                "Stream Hela Spellistan (Ljud)")
+            "Stream Hela Spellistan (Ljud)")
                 mpv --no-video "$url"
                 LAST_ACTION="stream"
                 ;; 
-                "Ladda ner Hela Spellistan (Video)")
+            "Ladda ner Hela Spellistan (Video)")
                 echo ""
                 gum style "Startar nedladdning av hela spellistan (video)..."
                 yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
@@ -225,7 +225,7 @@ $FORMATTED_TITLE?"
                     gum style --foreground "196" "❌ Nedladdning misslyckades."
                 fi
                 ;; 
-                "Ladda ner Hela Spellistan (Ljud)")
+            "Ladda ner Hela Spellistan (Ljud)")
                 echo ""
                 gum style "Startar nedladdning av hela spellistan (ljud)..."
                 yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
@@ -264,11 +264,12 @@ $FORMATTED_TITLE?"
                 declare -a TABLE_DATA_ROWS
                 
                 while IFS= read -r line; do
-                    if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +([0-9]+x[0-9]+)(\ +([0-9.]+))? ]]; then
+                    # Nytt, mer flexibelt regex
+                    if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +.*([0-9]+x[0-9]+).*([0-9.]+) ]]; then
                         id="${BASH_REMATCH[1]}"
                         ext="${BASH_REMATCH[2]}"
-                        res="${BASH_REMATCH[3]}"
-                        fps="${BASH_REMATCH[5]:-N/A}"
+                        res="${BASH_REMATCH[3]}" # Matchar upplösning var som helst efter ID/EXT
+                        fps="${BASH_REMATCH[4]:-N/A}" # FPS kan vara valfritt
                         
                         filesize="N/A"
                         if [[ "$line" =~ ([0-9.]+(MiB|GiB)) ]]; then
@@ -276,11 +277,11 @@ $FORMATTED_TITLE?"
                         fi
                         
                         codec="N/A"
-                        if [[ "$line" =~ ([a-zA-Z0-9.]+)\ +video\ only ]]; then
+                        if [[ "$line" =~ ([a-zA-Z0-9.]+)\ video\ only ]]; then
                             codec="${BASH_REMATCH[1]}"
                         fi
 
-                        if [[ "$line" =~ video\ only ]]; then
+                        if [[ "$line" =~ video\ only ]]; then # Säkerställ att det är en video-rad
                             TABLE_DATA_ROWS+=("${id},${res},${fps},${ext},${codec},${filesize}")
                         fi
                     fi
@@ -305,7 +306,7 @@ $FORMATTED_TITLE?"
                 
                 echo ""
                 gum style "Startar nedladdning av video..."
-                # FIX: Tog bort felaktigt mellanslag i filnamnsmallen (%(title)s)
+                # Korrigerat filnamn (borttaget mellanslag)
                 yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "% (title)s-%(height)sp.%(ext)s" "$url"
 
                 if [ $? -eq 0 ]; then
@@ -321,17 +322,17 @@ $FORMATTED_TITLE?"
                 echo ""
                 gum style "Startar nedladdning av ljud..."
                 
-                # FIX: Tog bort felaktigt mellanslag i filnamnsmallen
+                # Korrigerat filnamn (borttaget mellanslag)
                 BASENAME=$(yt-dlp "${COOKIE_ARGS[@]}" --get-filename -o "% (title)s" --no-warnings "$url" 2>/dev/null)
 
-                # FIX: Tog bort felaktigt mellanslag i filnamnsmallen
+                # Korrigerat filnamn (borttaget mellanslag)
                 yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "% (title)s.%(ext)s" "$url"
                 
                 if [ $? -eq 0 ]; then
                     find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do
                         rm -- "$file"
                         gum style --foreground "240" "Temporär fil raderad: $(basename "$file")"
-                    done
+                    end
 
                     echo ""
                     gum style --foreground "212" "✔ Nedladdning slutförd."
@@ -340,7 +341,7 @@ $FORMATTED_TITLE?"
                     gum style --foreground "196" "❌ Nedladdning misslyckades."
                 fi
                 ;; 
-        esac
+esac
     fi
 }
 
