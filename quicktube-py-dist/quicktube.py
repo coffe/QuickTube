@@ -10,6 +10,14 @@ import io
 import platform
 import urllib.request
 
+# Fixa Windows konsol-kodning för att visa emojis och gum-border korrekt
+if platform.system() == "Windows":
+    # Ställ in konsolen till UTF-8 (cp65001)
+    os.system("chcp 65001 > nul")
+    # Tvinga Python att använda UTF-8 för stdout/stderr
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 def get_user_bin_dir():
     """Returnera sökvägen till användarens lokala bin-mapp beroende på OS."""
     system = platform.system()
@@ -77,11 +85,15 @@ def select_cookie_browser():
 def run_command(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True):
     """Kör ett kommando och returnera resultatet."""
     try:
+        # Tvinga UTF-8 kodning för in/utdata för att hantera emojis etc.
+        # errors='replace' förhindrar krasch om något ogiltigt tecken ändå slinker igenom
         result = subprocess.run(
             cmd, 
             stdout=stdout,
             stderr=stderr,
             text=text, 
+            encoding='utf-8', 
+            errors='replace',
             check=False
         )
         return result
@@ -142,15 +154,17 @@ def gum_table(csv_data, header):
 
 def check_dependencies():
     missing_deps = []
+    # mpv och ffmpeg förväntas finnas på systemet, gum/yt-dlp/svtplay-dl är inbakade eller i bin
     dependencies = ["gum", "yt-dlp", "svtplay-dl", "mpv", "ffmpeg"]
     
     for dep in dependencies:
         if not shutil.which(dep):
             missing_deps.append(dep)
     
-    # Kolla clipboard
-    if not shutil.which("wl-paste") and not shutil.which("xclip"):
-        missing_deps.append("wl-paste eller xclip")
+    # Kolla clipboard bara på Linux
+    if platform.system() == "Linux":
+        if not shutil.which("wl-paste") and not shutil.which("xclip"):
+            missing_deps.append("wl-paste eller xclip")
         
     if missing_deps:
         gum_style("Fel: Följande beroenden saknas:", foreground="212")
@@ -160,12 +174,26 @@ def check_dependencies():
         sys.exit(1)
 
 def get_clipboard():
-    if shutil.which("wl-paste"):
+    system = platform.system()
+    if system == "Windows":
+        try:
+            # Använd PowerShell för att hämta urklipp på Windows
+            cmd = ["powershell", "-command", "Get-Clipboard"]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            return res.stdout.strip()
+        except:
+            return ""
+    elif shutil.which("wl-paste"):
         res = run_command(["wl-paste"])
         return res.stdout.strip().replace('\0', '')
     elif shutil.which("xclip"):
         res = run_command(["xclip", "-o", "-selection", "clipboard"])
         return res.stdout.strip().replace('\0', '')
+    # macOS pbpaste
+    elif shutil.which("pbpaste"):
+        res = run_command(["pbpaste"])
+        return res.stdout.strip()
+        
     return ""
 
 def is_valid_url(text):
@@ -276,6 +304,13 @@ def handle_youtube(url):
     
     if not res or res.returncode != 0:
         gum_style("Kunde inte hämta information för URL:en.", foreground="212")
+        if res:
+            print(f"\n--- DEBUG INFO ---")
+            print(f"Kommando: {' '.join(info_cmd)}")
+            print(f"Return code: {res.returncode}")
+            print(f"Error output:\n{res.stderr}")
+            print(f"------------------\n")
+        
         if not COOKIE_BROWSER:
             gum_style("Tips: Prova att välja en webbläsare för cookies i huvudmenyn.", foreground="240")
         return
@@ -325,7 +360,7 @@ def handle_youtube(url):
         elif action == "Ladda ner Hela Spellistan (Ljud)":
             gum_style("Startar nedladdning av hela spellistan (ljud)...")
             cmd.extend([
-                "-f", "bestaudio", "-x", "--audio-format", "opus",
+                "-f", "bestaudio/best", "-x", "--audio-format", "opus",
                 "-o", "%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s",
                 url
             ])
@@ -352,7 +387,7 @@ def handle_youtube(url):
             gum_style("Startar nedladdning av ljud...")
             cmd = get_ytdlp_base_cmd()
             cmd.extend([
-                "-f", "bestaudio", "-x", "--audio-format", "opus",
+                "-f", "bestaudio/best", "-x", "--audio-format", "opus",
                 "-o", "%(title)s.%(ext)s", url
             ])
             subprocess.run(cmd)
@@ -477,7 +512,7 @@ def update_tools():
     # --- SVTPLAY-DL ---
     if system != "Darwin":
         svt_remote = "svtplay-dl.exe" if system == "Windows" else "svtplay-dl"
-        svt_url = f"https://svtplay-dl.se/download/latest/{svt_remote}"
+        svt_url = f"https://github.com/spaam/svtplay-dl/releases/latest/download/{svt_remote}"
         
         gum_style("Laddar ner senaste svtplay-dl...", foreground="212")
         try:
