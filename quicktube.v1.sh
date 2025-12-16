@@ -229,7 +229,7 @@ $FORMATTED_TITLE?"
                 echo ""
                 gum style "Startar nedladdning av hela spellistan (ljud)..."
                 yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
-                       -f "bestaudio" -x --audio-format opus \
+                       -f "bestaudio/best" -x --audio-format opus \
                        -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$url"
                 if [ $? -eq 0 ]; then
                     gum style --foreground "212" "✔ Nedladdning av spellista slutförd."
@@ -326,13 +326,13 @@ $FORMATTED_TITLE?"
                 BASENAME=$(yt-dlp "${COOKIE_ARGS[@]}" --get-filename -o "% (title)s" --no-warnings "$url" 2>/dev/null)
 
                 # Korrigerat filnamn (borttaget mellanslag)
-                yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "% (title)s.%(ext)s" "$url"
+                yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio/best" -x --audio-format opus -o "% (title)s.%(ext)s" "$url"
                 
                 if [ $? -eq 0 ]; then
                     find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do
                         rm -- "$file"
                         gum style --foreground "240" "Temporär fil raderad: $(basename "$file")"
-                    end
+                    done
 
                     echo ""
                     gum style --foreground "212" "✔ Nedladdning slutförd."
