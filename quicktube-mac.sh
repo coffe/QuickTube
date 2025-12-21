@@ -1,11 +1,11 @@
 #!/bin/bash
-# quicktube-mac.sh: macOS-version av QuickTube med stöd för YouTube, SVT Play och Cookies.
+# quicktube-mac.sh: macOS version of QuickTube with support for YouTube, SVT Play, and Cookies.
 
-# Globala variabler
+# Global variables
 COOKIE_ARGS=()
 LAST_ACTION=""
 
-# --- Funktion för att kontrollera beroenden (macOS) ---
+# --- Function to check dependencies (macOS) ---
 check_dependencies() {
     local missing_deps=()
     local required_cmds=("gum" "yt-dlp" "svtplay-dl" "mpv" "ffmpeg")
@@ -18,174 +18,177 @@ check_dependencies() {
     done
 
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        gum style --foreground="212" "Fel: Nödvändiga program saknas."
-        gum style "Detta skript kräver: ${required_cmds[*]}"
+        gum style --foreground="212" "Error: Missing required programs."
+        gum style "This script requires: ${required_cmds[*]}"
         
         local install_command="brew install ${missing_deps[*]}"
-        gum style --border normal --padding "1 1" --margin "1" "Förslag för installation med Homebrew:" "$install_command"
+        gum style --border normal --padding "1 1" --margin "1" "Suggestion for installation with Homebrew:" "$install_command"
         
         exit 1
     fi
 
     if ! command -v pbpaste &> /dev/null;
         then
-        gum style --foreground="212" "Varning: 'pbpaste' saknas. Klippbordshantering kanske inte fungerar."
+        gum style --foreground="212" "Warning: pbpaste missing. Clipboard handling might not work."
     fi
 }
 
-# --- Funktion för att hämta urklipp (macOS) ---
+
+# --- Function to get clipboard (macOS) ---
 get_clipboard() {
     if command -v pbpaste &> /dev/null;
         then
-        pbpaste | tr -d '\0'
+        pbpaste | tr -d "\0"
     else
         echo ""
     fi
 }
 
 select_cookie_browser() {
-    BROWSER=$(gum choose "Ingen (Standard)" "chrome" "firefox" "brave" "edge" "safari" "opera" "vivaldi" "chromium")
-    if [ "$BROWSER" != "Ingen (Standard)" ]; then
+    BROWSER=$(gum choose "None (Default)" "chrome" "firefox" "brave" "edge" "safari" "opera" "vivaldi" "chromium")
+    if [ "$BROWSER" != "None (Default)" ]; then
         COOKIE_ARGS=("--cookies-from-browser" "$BROWSER")
-        gum style --foreground "212" "Webbläsare vald: $BROWSER"
+        gum style --foreground "212" "Browser selected: $BROWSER"
     else
         COOKIE_ARGS=()
-        gum style --foreground "212" "Cookies inaktiverade."
+        gum style --foreground "212" "Cookies disabled."
     fi
 }
 
-# --- Hantera SVT Play ---
+
+# --- Handle SVT Play ---
 handle_svt() {
     local url="$1"
     gum style --border rounded --padding "1 2" --border-foreground "240" \
-        "SVT Play-länk detekterad.
-Vad vill du göra?"
+        "SVT Play link detected.
+What do you want to do?"
 
-    ACTION=$(gum choose "Ladda ner (Bästa kvalitet + Undertexter)" "Ladda ner Hela Serien (-A)" "Ladda ner Hela Serien (yt-dlp)" "Ladda ner Specifika Avsnitt (yt-dlp)" "Ladda ner de X SISTA avsnitten (svtplay-dl)" "Stream (MPV)" "Ladda ner endast ljud")
+    ACTION=$(gum choose "Download (Best quality + Subtitles)" "Download Whole Series (-A)" "Download Whole Series (yt-dlp)" "Download Specific Episodes (yt-dlp)" "Download the LAST X episodes (svtplay-dl)" "Stream (MPV)" "Download audio only")
 
     case "$ACTION" in
-        "Ladda ner (Bästa kvalitet + Undertexter)")
+        "Download (Best quality + Subtitles)")
             echo ""
-            gum style "Startar nedladdning från SVT Play..."
+            gum style "Starting download from SVT Play..."
             svtplay-dl -S -M "$url"
             if [ $? -eq 0 ]; then
                 echo ""
-                gum style --foreground "212" "✔ Nedladdning slutförd."
+                gum style --foreground "212" "✔ Download complete."
             else
                 echo ""
-                gum style --foreground "196" "❌ Nedladdning misslyckades."
+                gum style --foreground "196" "❌ Download failed."
             fi
             ;; 
-        "Ladda ner Hela Serien (-A)")
+        "Download Whole Series (-A)")
             echo ""
-            gum style "Startar nedladdning av hela serien..."
+            gum style "Starting download of entire series..."
             svtplay-dl -S -M -A "$url"
             if [ $? -eq 0 ]; then
                 echo ""
-                gum style --foreground "212" "✔ Nedladdning slutförd."
+                gum style --foreground "212" "✔ Download complete."
             else
                  echo ""
-                 gum style --foreground "196" "❌ Nedladdning misslyckades. Prova 'yt-dlp' alternativet."
+                 gum style --foreground "196" "❌ Download failed. Try the yt-dlp option."
             fi
             ;; 
-        "Ladda ner Hela Serien (yt-dlp)")
+        "Download Whole Series (yt-dlp)")
             echo ""
-            gum style "Startar nedladdning av hela serien med yt-dlp..."
+            gum style "Starting download of entire series with yt-dlp..."
             yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                    --embed-subs --write-subs --sub-langs all \
-                   -o '%(series)s/S%(season_number)02dE%(episode_number)02d - %(title)s.%(ext)s' \
+                   -o "%(series)s/S%(season_number)02dE%(episode_number)02d - %(title)s.%(ext)s" \
                    "$url"
             if [ $? -eq 0 ]; then
                 echo ""
-                gum style --foreground "212" "✔ Nedladdning slutförd."
+                gum style --foreground "212" "✔ Download complete."
             else
                 echo ""
-                gum style --foreground "196" "❌ Nedladdning misslyckades."
+                gum style --foreground "196" "❌ Download failed."
             fi
             ;; 
-        "Ladda ner Specifika Avsnitt (yt-dlp)")
+        "Download Specific Episodes (yt-dlp)")
             echo ""
-            ITEMS=$(gum input --placeholder "Ange avsnitt (t.ex. 1, 2-5, 10)..." --value "")
+            ITEMS=$(gum input --placeholder "Enter episodes (e.g., 1, 2-5, 10)..." --value "")
             if [ -n "$ITEMS" ]; then
                 echo ""
-                gum style "Laddar ner avsnitt $ITEMS med yt-dlp..."
+                gum style "Downloading episodes $ITEMS with yt-dlp..."
                 yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                        --embed-subs --write-subs --sub-langs all \
                        --playlist-items "$ITEMS" \
-                       -o '%(series)s/S%(season_number)02dE%(episode_number)02d - %(title)s.%(ext)s' \
+                       -o "%(series)s/S%(season_number)02dE%(episode_number)02d - %(title)s.%(ext)s" \
                        "$url"
                 
                 if [ $? -eq 0 ]; then
                     echo ""
-                    gum style --foreground "212" "✔ Nedladdning slutförd."
+                    gum style --foreground "212" "✔ Download complete."
                 else
                     echo ""
-                    gum style --foreground "196" "❌ Nedladdning misslyckades."
+                    gum style --foreground "196" "❌ Download failed."
                 fi
             fi
             ;; 
-        "Ladda ner de X SISTA avsnitten (svtplay-dl)")
+        "Download the LAST X episodes (svtplay-dl)")
             echo ""
-            COUNT=$(gum input --placeholder "Antal avsnitt från slutet (t.ex. 5)..." --value "")
+            COUNT=$(gum input --placeholder "Number of episodes from the end (e.g., 5)..." --value "")
             if [[ "$COUNT" =~ ^[0-9]+$ ]]; then
-                gum style "Laddar ner de sista $COUNT avsnitten..."
+                gum style "Downloading the last $COUNT episodes..."
                 svtplay-dl -S -M -A --all-last "$COUNT" "$url"
                 if [ $? -eq 0 ]; then
                     echo ""
-                    gum style --foreground "212" "✔ Nedladdning slutförd."
+                    gum style --foreground "212" "✔ Download complete."
                 else
                     echo ""
-                    gum style --foreground "196" "❌ Nedladdning misslyckades."
+                    gum style --foreground "196" "❌ Download failed."
                 fi
             else
-                 gum style --foreground "196" "Felaktigt antal angivet."
+                 gum style --foreground "196" "Invalid number specified."
             fi
             ;; 
         "Stream (MPV)")
             mpv --no-terminal "$url"
             LAST_ACTION="stream"
             ;; 
-        "Ladda ner endast ljud")
+        "Download audio only")
             echo ""
-            gum style "Laddar ner endast ljud..."
+            gum style "Downloading audio only..."
             svtplay-dl --only-audio "$url"
             if [ $? -eq 0 ]; then
                 echo ""
-                gum style --foreground "212" "✔ Nedladdning slutförd."
+                gum style --foreground "212" "✔ Download complete."
             else
                 echo ""
-                gum style --foreground "196" "❌ Nedladdning misslyckades."
+                gum style --foreground "196" "❌ Download failed."
             fi
             ;; 
     esac
 }
 
-# --- Hantera YouTube ---
+
+# --- Handle YouTube ---
 handle_youtube() {
     local url="$1"
     
     MEDIA_INFO=$(yt-dlp "${COOKIE_ARGS[@]}" --flat-playlist --dump-json --no-warnings "$url" 2>/dev/null)
 
     if [ -z "$MEDIA_INFO" ]; then
-        gum style --foreground="212" "Kunde inte hämta information för URL:en." "Kontrollera cookies om 'Bot'-fel uppstår."
+        gum style --foreground="212" "Could not retrieve information for the URL." "Check cookies if Bot error occurs."
         return 1
     else 
         local ITEM_TITLE
         IS_PLAYLIST=false
 
-        # macOS-anpassning: Använd SED istället för Perl eller grep -P
-        # Parsar JSON-liknande struktur för att hitta "title": "..."
+        # macOS adaptation: Use SED instead of Perl or grep -P
+        # Parsing JSON-like structure to find "title": "..."
         ITEM_TITLE=$(echo "$MEDIA_INFO" | sed -n 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
 
-        if [[ "$url" == *"list="* ]] || echo "$MEDIA_INFO" | grep -q '"_type": "playlist"'; then
+        if [[ "$url" == *"list="* ]] || echo "$MEDIA_INFO" | grep -q '"_type": "playlist"' ; then
             IS_PLAYLIST=true
             if [ -z "$ITEM_TITLE" ]; then
-                ITEM_TITLE="Okänd spellista"
+                ITEM_TITLE="Unknown playlist"
             fi
         else
             if [ -z "$ITEM_TITLE" ]; then
-                # Om titel saknas trots lyckad hämtning
-                ITEM_TITLE="Okänd video"
+                # If title is missing despite successful fetch
+                ITEM_TITLE="Unknown video"
             fi
         fi
         
@@ -194,53 +197,53 @@ handle_youtube() {
         
         if [ "$IS_PLAYLIST" = true ]; then
              gum style --border rounded --padding "1 2" --border-foreground "240" \
-                "Vad vill du göra med spellistan:
+                "What do you want to do with the playlist:
 $FORMATTED_TITLE?"
 
-            ACTION=$(gum choose "Stream Hela Spellistan (Video)" "Stream Hela Spellistan (Ljud)" "Ladda ner Hela Spellistan (Video)" "Ladda ner Hela Spellistan (Ljud)")
+            ACTION=$(gum choose "Stream Full Playlist (Video)" "Stream Full Playlist (Audio)" "Download Full Playlist (Video)" "Download Full Playlist (Audio)")
 
             case "$ACTION" in
-                "Stream Hela Spellistan (Video)")
+                "Stream Full Playlist (Video)")
                     mpv --no-terminal "$url"
                     LAST_ACTION="stream"
                     ;; 
-                "Stream Hela Spellistan (Ljud)")
+                "Stream Full Playlist (Audio)")
                     mpv --no-video "$url"
                     LAST_ACTION="stream"
                     ;; 
-                "Ladda ner Hela Spellistan (Video)")
+                "Download Full Playlist (Video)")
                     echo ""
-                    gum style "Startar nedladdning av hela spellistan (video)..."
+                    gum style "Starting download of full playlist (video)..."
                     yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                            --merge-output-format mp4 \
                            -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$url"
                     if [ $? -eq 0 ]; then
-                        gum style --foreground "212" "✔ Nedladdning av spellista slutförd."
+                        gum style --foreground "212" "✔ Playlist download complete."
                     else
-                        gum style --foreground "196" "❌ Nedladdning misslyckades."
+                        gum style --foreground "196" "❌ Download failed."
                     fi
                     ;; 
-                "Ladda ner Hela Spellistan (Ljud)")
+                "Download Full Playlist (Audio)")
                     echo ""
-                    gum style "Startar nedladdning av hela spellistan (ljud)..."
+                    gum style "Starting download of full playlist (audio)..."
                     yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail \
                            -f "bestaudio" -x --audio-format opus \
                            -o '%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s' "$url"
                     if [ $? -eq 0 ]; then
-                        gum style --foreground "212" "✔ Nedladdning av spellista slutförd."
+                        gum style --foreground "212" "✔ Playlist download complete."
                     else
-                        gum style --foreground "196" "❌ Nedladdning misslyckades."
+                        gum style --foreground "196" "❌ Download failed."
                     fi
                     ;; 
             esac
         else
-            # Enskild video
+            # Single video
             gum style --border rounded --padding "1 2" --border-foreground "240" \
-                "Vad vill du göra med:
+                "What do you want to do with:
 $FORMATTED_TITLE?"
             
-            ACTION=$(gum choose "Stream Video (MPV)" "Stream Ljud (MPV)" "Ladda ner video" "Ladda ner ljud")
+            ACTION=$(gum choose "Stream Video (MPV)" "Stream Audio (MPV)" "Download video" "Download audio")
 
             case "$ACTION" in
                 "Stream Video (MPV)")
@@ -248,19 +251,19 @@ $FORMATTED_TITLE?"
                     LAST_ACTION="stream"
                     ;; 
                 
-                "Stream Ljud (MPV)")
+                "Stream Audio (MPV)")
                     mpv --no-video "$url"
                     LAST_ACTION="stream"
                     ;; 
 
-                "Ladda ner video")
+                "Download video")
                     FORMATS_OUTPUT=$(yt-dlp "${COOKIE_ARGS[@]}" -F --no-warnings "$url" 2>/dev/null)
                     
-                    HEADER="ID,Upplösning,FPS,Filtyp,Codec,Storlek"
+                    HEADER="ID,Resolution,FPS,Filetype,Codec,Size"
                     declare -a TABLE_DATA_ROWS
                     
                     while IFS= read -r line; do
-                        # Uppdaterat regex för att vara robust (samma som Linux-versionen)
+                        # Updated regex to be robust (same as Linux version)
                         if [[ "$line" =~ ^([0-9]+)\ +([a-zA-Z0-9]+)\ +.*([0-9]+x[0-9]+).*([0-9.]+) ]]; then
                             id="${BASH_REMATCH[1]}"
                             ext="${BASH_REMATCH[2]}"
@@ -284,13 +287,13 @@ $FORMATTED_TITLE?"
                     done <<< "$FORMATS_OUTPUT"
 
                     if [ ${#TABLE_DATA_ROWS[@]} -eq 0 ]; then
-                        gum style --foreground="212" "Kunde inte hitta några videoströmmar."
+                        gum style --foreground="212" "Could not find any video streams."
                         return 1
                     fi
 
                     SORTED_TABLE_ROWS=($(printf "%s\n" "${TABLE_DATA_ROWS[@]}" | sort -t, -k2 -r))
 
-                    TABLE_INPUT=$(echo "$HEADER"; IFS=$'\n'; echo "${SORTED_TABLE_ROWS[*]}")
+                    TABLE_INPUT=$(echo "$HEADER"; IFS=$n; echo "${SORTED_TABLE_ROWS[*]}")
                     CHOICE=$(echo "$TABLE_INPUT" | gum table -s, --height 10)
                     
                     if [ -z "$CHOICE" ]; then
@@ -300,39 +303,39 @@ $FORMATTED_TITLE?"
                     FORMAT_CODE=$(echo "$CHOICE" | cut -d, -f1)
                     
                     echo ""
-                    gum style "Startar nedladdning av video..."
-                    # Korrigerat filnamn (borttaget mellanslag)
+                    gum style "Starting video download..."
+                    # Corrected filename (space removed)
                     yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "$FORMAT_CODE+bestaudio" --merge-output-format mp4 -o "%(title)s-%(height)sp.%(ext)s" "$url"
                     
                     if [ $? -eq 0 ]; then
                         echo ""
-                        gum style --foreground "212" "✔ Nedladdning slutförd."
+                        gum style --foreground "212" "✔ Download complete."
                     else
                         echo ""
-                        gum style --foreground "196" "❌ Nedladdning misslyckades."
+                        gum style --foreground "196" "❌ Download failed."
                     fi
                     ;; 
 
-                "Ladda ner ljud")
+                "Download audio")
                     echo ""
-                    gum style "Startar nedladdning av ljud..."
+                    gum style "Starting audio download..."
                     
-                    # Korrigerat filnamn (borttaget mellanslag)
+                    # Corrected filename (space removed)
                     BASENAME=$(yt-dlp "${COOKIE_ARGS[@]}" --get-filename -o "%(title)s" --no-warnings "$url" 2>/dev/null)
 
-                    # Korrigerat filnamn (borttaget mellanslag)
+                    # Corrected filename (space removed)
                     yt-dlp "${COOKIE_ARGS[@]}" --no-warnings --force-overwrites --embed-metadata --embed-thumbnail -f "bestaudio" -x --audio-format opus -o "%(title)s.%(ext)s" "$url"
                     
                     if [ $? -eq 0 ]; then
                         find . -maxdepth 1 -name "$BASENAME.*" ! -name "*.opus" -type f -print0 | while IFS= read -r -d '' file; do
                             rm -- "$file"
-                            gum style --foreground "240" "Temporär fil raderad: $(basename "$file")"
+                            gum style --foreground "240" "Temporary file deleted: $(basename "$file")"
                         done
                         echo ""
-                        gum style --foreground "212" "✔ Nedladdning slutförd."
+                        gum style --foreground "212" "✔ Download complete."
                     else
                         echo ""
-                        gum style --foreground "196" "❌ Nedladdning misslyckades."
+                        gum style --foreground "196" "❌ Download failed."
                     fi
                     ;; 
             esac
@@ -340,7 +343,8 @@ $FORMATTED_TITLE?"
     fi
 }
 
-# Huvudfunktion
+
+# Main function
 main() {
     check_dependencies
     LAST_ACTION=""
@@ -376,10 +380,10 @@ main() {
         fi
         LAST_ACTION=""
         
-        URL=$(gum input --placeholder "Klistra in/skriv en URL (YouTube/SVT Play)..." --value "$URL_FROM_CLIPBOARD")
+        URL=$(gum input --placeholder "Paste/enter a URL (YouTube/SVT Play)..." --value "$URL_FROM_CLIPBOARD")
 
         if [ -z "$URL" ]; then
-            gum style "Ingen URL angiven. Avslutar."
+            gum style "No URL specified. Exiting."
             break
         fi
 
@@ -387,21 +391,22 @@ main() {
             handle_svt "$URL"
         else
             handle_youtube "$URL"
-            # Om handle_youtube returnerar 1 (fel/avbryt), fortsätter loopen och visar menyn nedan
+            # If handle_youtube returns 1 (error/cancel), the loop continues and shows the menu below
         fi
 
         echo ""
 
-        NEXT_STEP=$(gum choose "Ny länk" "Välj webbläsare för cookies" "Avsluta")
+        NEXT_STEP=$(gum choose "New link" "Select browser for cookies" "Exit")
         
-        if [[ "$NEXT_STEP" == "Välj webbläsare för cookies" ]]; then
+        if [[ "$NEXT_STEP" == "Select browser for cookies" ]]; then
             select_cookie_browser
             continue
-        elif [[ "$NEXT_STEP" != "Ny länk" ]]; then
+        elif [[ "$NEXT_STEP" != "New link" ]]; then
             break
         fi
     done
 }
 
-# Kör huvudfunktionen
+# Run main function
 main
+

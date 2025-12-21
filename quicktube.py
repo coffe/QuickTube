@@ -7,10 +7,10 @@ import json
 import csv
 import io
 
-# --- Hjälpfunktioner för externa kommandon (GUM wrappers) ---
+# --- Helper functions for external commands (GUM wrappers) ---
 
 def run_command(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True):
-    """Kör ett kommando och returnera resultatet."""
+    """Run a command and return the result."""
     try:
         result = subprocess.run(
             cmd, 
@@ -24,7 +24,7 @@ def run_command(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True):
         return None
 
 def gum_style(text, foreground=None, border=None, padding=None, border_foreground=None):
-    """Wrapper för 'gum style'."""
+    """Wrapper for "gum style"."""
     cmd = ["gum", "style"]
     if foreground:
         cmd.extend(["--foreground", foreground])
@@ -39,41 +39,42 @@ def gum_style(text, foreground=None, border=None, padding=None, border_foregroun
     subprocess.run(cmd)
 
 def gum_input(placeholder, value=""):
-    """Wrapper för 'gum input'."""
+    """Wrapper for "gum input"."""
     cmd = ["gum", "input", "--placeholder", placeholder]
     if value:
         cmd.extend(["--value", value])
     
-    # stderr=None låter gum rita UI:t till terminalen
+    # stderr=None lets gum draw the UI to the terminal
     res = run_command(cmd, stderr=None)
     return res.stdout.strip() if res else ""
 
 def gum_choose(choices, header=None):
-    """Wrapper för 'gum choose'."""
+    """Wrapper for "gum choose"."""
     if header:
-        print("") # Nyrad för snygghet
+        print("") # Newline for aesthetics
         gum_style(header, border="rounded", padding="1 2", border_foreground="240")
     
     cmd = ["gum", "choose"] + choices
-    # stderr=None låter gum rita UI:t till terminalen
+    # stderr=None lets gum draw the UI to the terminal
     res = run_command(cmd, stderr=None)
     return res.stdout.strip() if res else ""
 
+
 def gum_table(csv_data, header):
-    """Wrapper för 'gum table'."""
-    # gum table förväntar sig CSV via stdin
+    """Wrapper for "gum table"."""
+    # gum table expects CSV via stdin
     full_data = header + "\n" + csv_data
     process = subprocess.Popen(
         ["gum", "table", "-s", ",", "--height", "10"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=None, # Låt stderr synas!
+        stderr=None, # Let stderr be visible!
         text=True
     )
     stdout, _ = process.communicate(input=full_data)
     return stdout.strip()
 
-# --- Kärnfunktioner ---
+# --- Core functions ---
 
 def check_dependencies():
     missing_deps = []
@@ -83,28 +84,28 @@ def check_dependencies():
         if not shutil.which(dep):
             missing_deps.append(dep)
     
-    # Kolla clipboard
+    # Check clipboard
     if not shutil.which("wl-paste") and not shutil.which("xclip"):
-        missing_deps.append("wl-paste eller xclip")
+        missing_deps.append("wl-paste or xclip")
         
     if missing_deps:
-        gum_style("Fel: Följande beroenden saknas:", foreground="212")
+        gum_style("Error: The following dependencies are missing:", foreground="212")
         for dep in missing_deps:
             print(f"- {dep}")
-        gum_style("Installera dem och försök igen.", foreground="212")
+        gum_style("Please install them and try again.", foreground="212")
         sys.exit(1)
 
 def get_clipboard():
     if shutil.which("wl-paste"):
         res = run_command(["wl-paste"])
-        return res.stdout.strip().replace('\0', '')
+        return res.stdout.strip().replace("\0", "")
     elif shutil.which("xclip"):
         res = run_command(["xclip", "-o", "-selection", "clipboard"])
-        return res.stdout.strip().replace('\0', '')
+        return res.stdout.strip().replace("\0", "")
     return ""
 
 def is_valid_url(text):
-    """Enkel kontroll om texten ser ut som en relevant URL."""
+    """Simple check if the text looks like a relevant URL."""
     patterns = [
         r"https?://(www\.)?youtube\.com/",
         r"https?://(www\.)?youtu\.be/",
@@ -115,18 +116,19 @@ def is_valid_url(text):
             return True
     return False
 
-# --- Huvudlogik ---
+
+# --- Main Logic ---
 
 def handle_svtplay(url):
-    header_text = "SVT Play-länk detekterad.\nVad vill du göra?"
+    header_text = "SVT Play link detected.\nWhat do you want to do?"
     choices = [
-        "Ladda ner (Bästa kvalitet + Undertexter)",
-        "Ladda ner Hela Serien (-A)",
-        "Ladda ner Hela Serien (yt-dlp)",
-        "Ladda ner Specifika Avsnitt (yt-dlp)",
-        "Ladda ner de X SISTA avsnitten (svtplay-dl)",
+        "Download (Best quality + Subtitles)",
+        "Download Whole Series (-A)",
+        "Download Whole Series (yt-dlp)",
+        "Download Specific Episodes (yt-dlp)",
+        "Download the LAST X episodes (svtplay-dl)",
         "Stream (MPV)",
-        "Ladda ner endast ljud"
+        "Download audio only"
     ]
     
     action = gum_choose(choices, header=header_text)
@@ -136,18 +138,18 @@ def handle_svtplay(url):
     print("") # Spacer
     success = False
 
-    if action == "Ladda ner (Bästa kvalitet + Undertexter)":
-        gum_style("Startar nedladdning från SVT Play...")
+    if action == "Download (Best quality + Subtitles)":
+        gum_style("Starting download from SVT Play...")
         res = subprocess.run(["svtplay-dl", "-S", "-M", url])
         success = (res.returncode == 0)
 
-    elif action == "Ladda ner Hela Serien (-A)":
-        gum_style("Startar nedladdning av hela serien...")
+    elif action == "Download Whole Series (-A)":
+        gum_style("Starting download of entire series...")
         res = subprocess.run(["svtplay-dl", "-S", "-M", "-A", url])
         success = (res.returncode == 0)
 
-    elif action == "Ladda ner Hela Serien (yt-dlp)":
-        gum_style("Startar nedladdning av hela serien med yt-dlp...")
+    elif action == "Download Whole Series (yt-dlp)":
+        gum_style("Starting download of entire series with yt-dlp...")
         cmd = [
             "yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", 
             "--embed-thumbnail", "--embed-subs", "--write-subs", "--sub-langs", "all",
@@ -157,10 +159,10 @@ def handle_svtplay(url):
         res = subprocess.run(cmd)
         success = (res.returncode == 0)
 
-    elif action == "Ladda ner Specifika Avsnitt (yt-dlp)":
-        items = gum_input("Ange avsnitt (t.ex. 1, 2-5, 10)...")
+    elif action == "Download Specific Episodes (yt-dlp)":
+        items = gum_input("Enter episodes (e.g., 1, 2-5, 10)...")
         if items:
-            gum_style(f"Laddar ner avsnitt {items} med yt-dlp...")
+            gum_style(f"Downloading episodes {items} with yt-dlp...")
             cmd = [
                 "yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata",
                 "--embed-thumbnail", "--embed-subs", "--write-subs", "--sub-langs", "all",
@@ -173,86 +175,88 @@ def handle_svtplay(url):
         else:
             return
 
-    elif action == "Ladda ner de X SISTA avsnitten (svtplay-dl)":
-        count = gum_input("Antal avsnitt från slutet (t.ex. 5)...")
+    elif action == "Download the LAST X episodes (svtplay-dl)":
+        count = gum_input("Number of episodes from the end (e.g., 5)...")
         if count.isdigit():
-            gum_style(f"Laddar ner de sista {count} avsnitten...")
+            gum_style(f"Downloading the last {count} episodes...")
             res = subprocess.run(["svtplay-dl", "-S", "-M", "-A", "--all-last", count, url])
             success = (res.returncode == 0)
         else:
-            gum_style("Felaktigt antal angivet.", foreground="196")
+            gum_style("Invalid number specified.", foreground="196")
             return
 
     elif action == "Stream (MPV)":
         subprocess.run(["mpv", "--no-terminal", url])
-        return "stream" # Signalera att vi streamade
+        return "stream" # Signal that we streamed
 
-    elif action == "Ladda ner endast ljud":
-        gum_style("Laddar ner endast ljud...")
+    elif action == "Download audio only":
+        gum_style("Downloading audio only...")
         res = subprocess.run(["svtplay-dl", "--only-audio", url])
         success = (res.returncode == 0)
 
-    # Resultatmeddelande
+    # Result message
     print("")
     if success:
-        gum_style("✔ Nedladdning slutförd.", foreground="212")
+        gum_style("✔ Download complete.", foreground="212")
     else:
-        gum_style("❌ Nedladdning misslyckades.", foreground="196")
+        gum_style("❌ Download failed.", foreground="196")
     
     return "download"
 
+
 def handle_youtube(url):
-    # Hämta info som JSON (säkrare än bash-parsing)
+    # Get info as JSON (safer than bash parsing)
     res = run_command(["yt-dlp", "--flat-playlist", "--dump-json", "--no-warnings", url])
     
     if not res or res.returncode != 0:
-        gum_style("Kunde inte hämta information för URL:en.", foreground="212")
+        gum_style("Could not retrieve information for the URL.", foreground="212")
         return
 
     try:
-        # yt-dlp kan returnera flera JSON-objekt separerade med newline för spellistor
-        first_line = res.stdout.strip().split('\n')[0]
+        # yt-dlp can return multiple JSON objects separated by newline for playlists
+        first_line = res.stdout.strip().split("\n")[0]
         info = json.loads(first_line)
     except json.JSONDecodeError:
-        gum_style("Kunde inte tolka videoinformation.", foreground="212")
+        gum_style("Could not parse video information.", foreground="212")
         return
 
-    title = info.get("title", "Okänd titel")
+    title = info.get("title", "Unknown title")
     is_playlist = info.get("_type") == "playlist" or "list=" in url
     
     formatted_title = f"{title[:57]}..." if len(title) > 60 else title
 
     if is_playlist:
-        header = f"Vad vill du göra med spellistan:\n{formatted_title}?"
+        header = f"What do you want to do with the playlist:\n{formatted_title}?"
         choices = [
-            "Stream Hela Spellistan (Video)", 
-            "Stream Hela Spellistan (Ljud)",
-            "Ladda ner Hela Spellistan (Video)", 
-            "Ladda ner Hela Spellistan (Ljud)"
+            "Stream Full Playlist (Video)", 
+            "Stream Full Playlist (Audio)",
+            "Download Full Playlist (Video)", 
+            "Download Full Playlist (Audio)"
         ]
         action = gum_choose(choices, header=header)
 
-        if action == "Stream Hela Spellistan (Video)":
+        if action == "Stream Full Playlist (Video)":
             subprocess.run(["mpv", "--no-terminal", url])
             return "stream"
-        elif action == "Stream Hela Spellistan (Ljud)":
+        elif action == "Stream Full Playlist (Audio)":
             subprocess.run(["mpv", "--no-video", url])
             return "stream"
-        
-        # För nedladdning
+
+
+        # For download
         print("")
         cmd = ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail"]
         
-        if action == "Ladda ner Hela Spellistan (Video)":
-            gum_style("Startar nedladdning av hela spellistan (video)...")
+        if action == "Download Full Playlist (Video)":
+            gum_style("Starting download of full playlist (video)...")
             cmd.extend([
                 "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "-o", "%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s",
                 url
             ])
-        elif action == "Ladda ner Hela Spellistan (Ljud)":
-            gum_style("Startar nedladdning av hela spellistan (ljud)...")
+        elif action == "Download Full Playlist (Audio)":
+            gum_style("Starting download of full playlist (audio)...")
             cmd.extend([
                 "-f", "bestaudio", "-x", "--audio-format", "opus",
                 "-o", "%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s",
@@ -260,36 +264,38 @@ def handle_youtube(url):
             ])
         
         subprocess.run(cmd)
-        gum_style("✔ Nedladdning av spellista slutförd.", foreground="212")
+        gum_style("✔ Playlist download complete.", foreground="212")
         return "download"
 
+
     else:
-        # Enskild video
-        header = f"Vad vill du göra med:\n{formatted_title}?"
-        choices = ["Stream Video (MPV)", "Stream Ljud (MPV)", "Ladda ner video", "Ladda ner ljud"]
+        # Single video
+        header = f"What do you want to do with:\n{formatted_title}?"
+        choices = ["Stream Video (MPV)", "Stream Audio (MPV)", "Download video", "Download audio"]
         action = gum_choose(choices, header=header)
 
         if action == "Stream Video (MPV)":
             subprocess.run(["mpv", "--no-terminal", url])
             return "stream"
-        elif action == "Stream Ljud (MPV)":
+        elif action == "Stream Audio (MPV)":
             subprocess.run(["mpv", "--no-video", url])
             return "stream"
 
-        elif action == "Ladda ner ljud":
+        elif action == "Download audio":
             print("")
-            gum_style("Startar nedladdning av ljud...")
-            # Hämta filnamn för städning (lite överkurs i Python kanske, yt-dlp sköter oftast detta, men följer scriptet)
+            gum_style("Starting audio download...")
+            # Get filename for cleanup (a bit overkill in Python perhaps, yt-dlp usually handles this, but following the script)
             subprocess.run([
                 "yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", 
                 "--embed-thumbnail", "-f", "bestaudio", "-x", "--audio-format", "opus",
                 "-o", "%(title)s.%(ext)s", url
             ])
-            gum_style("✔ Nedladdning slutförd.", foreground="212")
+            gum_style("✔ Download complete.", foreground="212")
             return "download"
 
-        elif action == "Ladda ner video":
-            # Hämta format via JSON istället för text-parsing (mycket robustare)
+
+        elif action == "Download video":
+            # Get format via JSON instead of text parsing (much more robust)
             res_fmt = run_command(["yt-dlp", "-J", url])
             if not res_fmt: return
             
@@ -300,9 +306,9 @@ def handle_youtube(url):
                 return
 
             table_data = []
-            # Skapa lista likt bash-scriptet: ID, Res, FPS, Ext, Codec, Storlek
+            # Create list like the bash script: ID, Res, FPS, Ext, Codec, Size
             for f in formats:
-                # Filtrera bort "video only" som inte är relevanta eller audio only
+                # Filter out "video only" that are not relevant or audio only
                 if f.get("vcodec") == "none": continue 
                 
                 f_id = f.get("format_id", "N/A")
@@ -314,15 +320,15 @@ def handle_youtube(url):
                 vcodec = f.get("vcodec", "N/A")
                 filesize = f.get("filesize") or f.get("filesize_approx")
                 
-                # Formatera storlek
+                # Format size
                 size_str = "N/A"
                 if filesize:
                     size_str = f"{filesize / (1024*1024):.1f}MiB"
 
                 table_data.append([f_id, res, fps, ext, vcodec, size_str])
 
-            # Sortera (vi försöker efterlikna bash sort -t, -k2,2V -r men Pythonic)
-            # Sorterar primärt på höjd (upplösning) fallande
+            # Sort (trying to mimic bash sort -t, -k2,2V -r but Pythonic)
+            # Sorts primarily on height (resolution) descending
             def sort_key(row):
                 try:
                     res_part = row[1]
@@ -333,13 +339,13 @@ def handle_youtube(url):
 
             table_data.sort(key=sort_key, reverse=True)
             
-            # Skapa CSV-sträng med csv-modulen
+            # Create CSV string with csv module
             csv_output = io.StringIO()
             writer = csv.writer(csv_output)
             writer.writerows(table_data)
             
             csv_string = csv_output.getvalue()
-            header = "ID,Upplösning,FPS,Filtyp,Codec,Storlek"
+            header = "ID,Resolution,FPS,Filetype,Codec,Size"
             
             choice = gum_table(csv_string, header)
             
@@ -347,14 +353,14 @@ def handle_youtube(url):
 
             format_code = choice.split(',')[0]
             print("")
-            gum_style("Startar nedladdning av video...")
+            gum_style("Starting video download...")
             subprocess.run([
                 "yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", 
                 "--embed-thumbnail", "-f", f"{format_code}+bestaudio", 
                 "--merge-output-format", "mp4", 
                 "-o", "%(title)s-%(height)sp.%(ext)s", url
             ])
-            gum_style("✔ Nedladdning slutförd.", foreground="212")
+            gum_style("✔ Download complete.", foreground="212")
             return "download"
 
 
@@ -366,18 +372,18 @@ def main():
         clipboard_content = get_clipboard()
         url_from_clipboard = ""
 
-        # Förifyll bara om senaste åtgärden INTE var stream
+        # Pre-fill only if the last action was NOT stream
         if last_action != "stream":
             cleaned = clipboard_content.strip()
             if is_valid_url(cleaned):
                 url_from_clipboard = cleaned
         
-        last_action = "" # Återställ
+        last_action = "" # Reset
 
-        url = gum_input("Klistra in/skriv en URL (YouTube/SVT Play)...", value=url_from_clipboard)
+        url = gum_input("Paste/enter a URL (YouTube/SVT Play)...", value=url_from_clipboard)
 
         if not url:
-            gum_style("Ingen URL angiven. Avslutar.")
+            gum_style("No URL specified. Exiting.")
             break
 
         is_svt = "svtplay.se" in url
@@ -388,13 +394,14 @@ def main():
             last_action = handle_youtube(url)
 
         print("")
-        next_step = gum_choose(["Ny länk", "Avsluta"])
-        if next_step != "Ny länk":
+        next_step = gum_choose(["New link", "Exit"])
+        if next_step != "New link":
             break
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nAvslutar...")
+        print("\nExiting...")
         sys.exit(0)
+
