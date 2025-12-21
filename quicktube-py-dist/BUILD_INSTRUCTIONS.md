@@ -1,44 +1,44 @@
-# Bygginstruktioner för QuickTube (Python)
+# QuickTube Build Instructions (Python)
 
-Detta projekt kan byggas till en fristående körbar fil för både Linux och macOS. Den slutgiltiga filen innehåller alla nödvändiga verktyg (`yt-dlp`, `svtplay-dl`, `gum`) inbakat.
+This project can be built into a standalone executable for both Linux and macOS. The final binary includes all necessary tools (`yt-dlp`, `svtplay-dl`, `gum`) embedded within it.
 
-## Förberedelser
-Du behöver ha **Python 3** installerat på systemet du bygger på.
+## Prerequisites
+You need to have **Python 3** installed on the system you are building on.
 
-## Bygg för macOS
-För att bygga en binär för Mac måste du bygga den **på en Mac**.
+## Build for macOS
+To build a binary for Mac, you must build it **on a Mac**.
 
-1.  Kopiera hela mappen `quicktube-py-dist` till din Mac.
-2.  Öppna Terminal och gå till mappen:
+1.  Copy the entire `quicktube-py-dist` folder to your Mac.
+2.  Open Terminal and navigate to the folder:
     ```bash
-    cd sökväg/till/quicktube-py-dist
+    cd path/to/quicktube-py-dist
     ```
-3.  Gör byggscriptet körbart:
+3.  Make the build script executable:
     ```bash
     chmod +x build_mac.sh
     ```
-4.  Kör byggscriptet:
+4.  Run the build script:
     ```bash
     ./build_mac.sh
     ```
-    *Scriptet kommer automatiskt att ladda ner rätt versioner av verktygen för macOS och skapa den körbara filen.*
+    *The script will automatically download the correct versions of the tools for macOS and create the executable.*
 
-5.  Din färdiga app finns nu i mappen `dist/` och heter `quicktube-mac`.
+5.  Your finished app is now in the `dist/` folder and is named `quicktube-mac`.
 
-## Bygg för Linux
-1.  Gå till mappen i terminalen:
+## Build for Linux
+1.  Navigate to the folder in the terminal:
     ```bash
     cd quicktube-py-dist
     ```
-2.  Gör byggscriptet körbart:
+2.  Make the build script executable:
     ```bash
     chmod +x build_linux.sh
     ```
-3.  Kör byggscriptet:
+3.  Run the build script:
     ```bash
     ./build_linux.sh
     ```
-4.  Din färdiga binär finns i `dist/quicktube`.
+4.  Your finished binary is located in `dist/quicktube`.
 
-## Noteringar
-- **FFmpeg & MPV:** Dessa program inkluderas *inte* i den körbara filen eftersom de är mycket stora. Användaren förväntas ha dessa installerade på sitt system (`brew install ffmpeg mpv` på Mac, `apt install ffmpeg mpv` på Linux).
+## Notes
+- **FFmpeg & MPV:** These programs are *not* included in the executable because they are very large. The user is expected to have these installed on their system (`brew install ffmpeg mpv` on Mac, `apt install ffmpeg mpv` on Linux).
