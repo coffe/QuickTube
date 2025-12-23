@@ -12,13 +12,21 @@ env/
 build/
 dist/
 *.spec
+bin/
 
 # Backups and Logs
 *.bak
+*.bak2
 *.log
 log.txt
 ytrss.py_20*
+quicktube.py_*
 
 # System
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+
+# Configuration
+config.json

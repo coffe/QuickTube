@@ -1,4 +1,6 @@
 feedparser
 aiohttp
+yt-dlp
+svtplay-dl
 InquirerPy
 rich

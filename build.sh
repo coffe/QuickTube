@@ -5,11 +5,11 @@ set -e
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Building YTRSS 2.0...${NC}"
+echo -e "${GREEN}Building QuickTube 2.0 Suite...${NC}"
 
 # Cleanup
 echo "Cleaning up old builds..."
-rm -rf build dist .venv ytrss.spec
+rm -rf build dist .venv *.spec
 
 # Create Virtual Environment
 echo "Creating virtual environment..."
@@ -22,14 +22,17 @@ pip install --upgrade pip
 pip install -r requirements.txt
 pip install pyinstaller
 
-# Build
-# Note: --add-data format is source:dest. On Linux/Mac use :, on Windows use ;
-# We assume Linux build environment here as per shebang
-echo "Compiling binary with PyInstaller..."
+# Build QuickTube
+echo "Compiling QuickTube..."
+pyinstaller --onefile --name quicktube --clean quicktube.py
+
+# Build YTRSS
+echo "Compiling YTRSS..."
 pyinstaller --onefile --name ytrss --add-data "KEYS.md:." --clean ytrss.py
 
 # Organize output
 mkdir -p bin
+cp dist/quicktube bin/
 cp dist/ytrss bin/
 
-echo -e "${GREEN}Build complete! Binary located at: bin/ytrss${NC}"
+echo -e "${GREEN}Build complete! Binaries located in: bin/${NC}"
