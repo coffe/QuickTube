@@ -1,18 +1,41 @@
-# Backups
+# Backups and Temporary files
 *.backup.*
 *.bak
+*.bak.*
+*_202*
+QuickTube_backup_*/
+tmp/
+*.log
+log.txt
+todo.md
+analys.md
+
+# Media downloads (ignore video/audio/images in root)
+*.mp4
+*.mp3
+*.m4a
+*.webp
+*.part
+*.ytdl
 
 # Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
+*.spec
 
-# QuickTube Python build artifacts
-quicktube-py-dist/venv/
-quicktube-py-dist/build/
-quicktube-py-dist/dist/
-quicktube-py-dist/bin/
-quicktube-py-dist/bin_mac/
+# Virtual Environments
+.venv/
+env/
+venv/
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+
+# QuickTube specific old artifacts
+quicktube-py-dist/
+quicktube-windows-port/
 
 # Archives
 *.7z
