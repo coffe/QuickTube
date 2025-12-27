@@ -17,6 +17,8 @@ While the code is written in Python and should technically run on other platform
 *   **📺 Stream & Download:** Instantly stream video/audio via `mpv` or download in best quality using `yt-dlp`.
 *   **🧩 Smart Clipboard:** Automatically detects YouTube or SVT Play links in your clipboard upon startup.
 *   **📜 History:** Keeps track of your 3 most recently accessed videos for quick re-access.
+*   **📂 Batch Download:** Download multiple links from a text file.
+*   **📖 Expert Guide:** Built-in guide to help you master all features.
 *   **⏯️ Playlist Support:** Detects playlists and offers to stream/download the whole set.
 *   **🇸🇪 SVT Play Support:** Dedicated support for `svtplay.se` including series downloading and subtitles.
 *   **🚀 Native TUI:** Built with Python using **Rich** and **InquirerPy** for a snappy, beautiful, and flicker-free experience.
@@ -60,6 +62,14 @@ If you are modifying the code or testing changes, `uv` is the fastest way to run
 uv run main.py
 ```
 
+## 📂 Batch Downloading
+
+You can download multiple videos at once by providing a text file with one URL per line.
+*   **Via Menu:** Select "Batch Download from file" and enter the path to your file.
+*   **Via CLI:** Run `python main.py links.txt` (or `./dist/quicktube links.txt`).
+
+All files will be saved in a new folder named after your input file.
+
 ## ⚙️ Configuration & Data
 
 QuickTube stores your history and logs in your system's standard configuration directory:
@@ -69,11 +79,13 @@ QuickTube stores your history and logs in your system's standard configuration d
 
 ## 🏗️ Architecture
 
-The project has recently been refactored from a monolithic script into a modular Python application:
+The project has recently been refactored from a modular Python application:
 
 *   `src/core.py` - Main logic for handling media interactions.
 *   `src/ui.py` - TUI rendering using Rich and InquirerPy.
 *   `src/history.py` - JSON-based persistence layer.
+*   `src/batch.py` - Batch processing logic.
+*   `src/guide.py` - Interactive expert guide.
 *   `src/config.py` - Path and resource management.
 
 ## 🤝 Contributing

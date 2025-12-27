@@ -5,6 +5,7 @@ import json
 import subprocess
 import urllib.request
 import platform
+from pathlib import Path
 
 from src.utils import run_command, write_log
 from src.ui import gum_style, gum_choose, gum_input, gum_table
@@ -13,7 +14,7 @@ from src.history import add_to_history
 
 def get_ytdlp_base_cmd():
     """Return base command for yt-dlp including cookies if selected."""
-    cmd = ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail"]
+    cmd = ["yt-dlp", "--no-warnings", "--embed-metadata", "--embed-thumbnail"]
     if config.COOKIE_BROWSER:
         cmd.extend(["--cookies-from-browser", config.COOKIE_BROWSER])
     return cmd
@@ -412,3 +413,46 @@ def update_tools():
     # and gum_input logic is specifically for text entry.
     # But for consistency, let's use gum_input but ignore result.
     gum_input("Press Enter to continue...")
+
+# --- Batch Download Functions ---
+
+def download_youtube_silent(url, output_dir, mode="video"):
+    """Download from YouTube without user interaction."""
+    cmd = get_ytdlp_base_cmd()
+    
+    # Set output directory and template
+    # Use -P for path to ensure it goes into the right folder
+    cmd.extend(["-P", str(output_dir)])
+    
+    if mode == "video":
+        cmd.extend([
+            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "--merge-output-format", "mp4",
+            "-o", "%(title)s.%(ext)s"
+        ])
+    else: # audio
+        cmd.extend([
+            "-f", "bestaudio/best", "-x", "--audio-format", "opus",
+            "-o", "%(title)s.%(ext)s"
+        ])
+        
+    cmd.append(url)
+    
+    return subprocess.run(cmd)
+
+def download_svtplay_silent(url, output_dir, mode="video"):
+    """Download from SVT Play without user interaction."""
+    # svtplay-dl doesn't support -P easily, we might need to chdir or use absolute paths?
+    # svtplay-dl usually downloads to current dir.
+    # We can pass the URL and handle moving, or change cwd temporarily?
+    # Changing CWD is risky in threads, but fine in single process.
+    # Better: svtplay-dl documentation says output filename can be specified, but directory?
+    # Let's use cwd argument in subprocess.run
+    
+    cmd = ["svtplay-dl", "-S", "-M"]
+    if mode == "audio":
+        cmd.append("--only-audio")
+        
+    cmd.append(url)
+    
+    return subprocess.run(cmd, cwd=output_dir)

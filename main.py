@@ -26,6 +26,8 @@ from src.clipboard import get_clipboard
 from src.ui import gum_input, gum_choose
 from src.core import handle_svtplay, handle_youtube, select_cookie_browser, update_tools, is_valid_url
 from src.history import load_history
+from src.batch import handle_batch_download
+from src.guide import show_guide
 
 def main():
     # Setup PATH to include bundled or local tools
@@ -34,6 +36,17 @@ def main():
     # Ensure dependencies exist
     check_dependencies()
     
+    # CLI Support: quicktube <filename>
+    if len(sys.argv) > 1:
+        # Check if argument is a file (Batch mode)
+        file_path = sys.argv[1]
+        if os.path.isfile(file_path):
+            handle_batch_download(file_path)
+            return # Exit after batch processing
+        else:
+            print(f"Error: File '{file_path}' not found.")
+            sys.exit(1)
+
     last_action = ""
 
     while True:
@@ -61,6 +74,7 @@ def main():
             
             menu_choices = [
                 Choice(value="Paste link", name="Paste link"),
+                Choice(value="Batch", name="Batch Download from file"),
                 Choice(value="Update tools", name="Update tools"),
                 Choice(value="Select cookie browser", name="Select cookie browser")
             ]
@@ -74,6 +88,7 @@ def main():
                     display_title = (title[:40] + '..') if len(title) > 40 else title
                     menu_choices.append(Choice(value=h_url, name=f"   {display_title}"))
             
+            menu_choices.append(Choice(value="Guide", name="How To be a QuickTube expert"))
             menu_choices.append(Choice(value="Exit", name="Exit"))
 
             choice = gum_choose(menu_choices, header="QuickTube\nMain Menu")
@@ -86,6 +101,12 @@ def main():
                 continue
             elif choice == "Select cookie browser":
                 select_cookie_browser()
+                continue
+            elif choice == "Batch":
+                handle_batch_download()
+                continue
+            elif choice == "Guide":
+                show_guide()
                 continue
             elif choice == "Exit":
                 break
