@@ -5,6 +5,13 @@
 ![QuickTube Menu](https://raw.githubusercontent.com/wulffern/QuickTube/main/img/QuickTube.gif)
 *(Note: Screenshot may refer to an older version. New UI is even cleaner!)*
 
+## ⚠️ Compatibility Note
+
+**This version has been primarily tested on Linux.**
+
+While the code is written in Python and should technically run on other platforms, it has **not yet been verified on macOS or Windows**.
+*   **macOS & Windows:** Support is experimental. Dedicated build scripts (`.bat` / `.sh`) and testing for these platforms are planned for a future update.
+
 ## ✨ Features
 
 *   **📺 Stream & Download:** Instantly stream video/audio via `mpv` or download in best quality using `yt-dlp`.
@@ -21,19 +28,19 @@
 *   **FFmpeg** (For merging video/audio)
 *   **MPV** (For streaming)
 
-The python dependencies are listed in `requirements.txt`.
-
 ## 🚀 Installation & Usage
 
-### Option 1: Run with `uv` (Recommended)
-If you have [uv](https://github.com/astral-sh/uv) installed, you can run the project instantly without manual setup:
+### 1. Build Standalone Executable (Recommended)
+The easiest way to run QuickTube is to build it into a single file. This requires `PyInstaller` (installed via the script).
 
 ```bash
-cd QuickTube
-uv run main.py
+./build.sh
 ```
+The resulting executable will be placed in `dist/quicktube`. You can move this file anywhere (e.g., `/usr/local/bin`) and run it without needing Python installed.
 
-### Option 2: Manual Setup
+### 2. Manual Setup (Virtual Environment)
+If you prefer running the Python script directly:
+
 1.  Clone the repository.
 2.  Create a virtual environment and install dependencies:
     ```bash
@@ -46,13 +53,12 @@ uv run main.py
     python main.py
     ```
 
-### Option 3: Build Standalone Executable
-You can bundle the application into a single executable file using the included script (requires PyInstaller):
+### 3. For Developers (Using `uv`)
+If you are modifying the code or testing changes, `uv` is the fastest way to run the project without manually managing virtual environments to see results instantly:
 
 ```bash
-./build.sh
+uv run main.py
 ```
-The executable will be placed in `dist/quicktube`.
 
 ## ⚙️ Configuration & Data
 
