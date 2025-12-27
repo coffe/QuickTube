@@ -392,20 +392,23 @@ def update_tools():
         gum_style(f"❌ Failed to update yt-dlp: {e}", foreground="196")
 
     # --- SVTPLAY-DL ---
-    if system != "Darwin":
-        svt_remote = "svtplay-dl.exe" if system == "Windows" else "svtplay-dl"
-        svt_url = f"https://github.com/spaam/svtplay-dl/releases/latest/download/{svt_remote}"
+    if system == "Windows":
+        svt_remote = "svtplay-dl.exe"
+        # Official site often redirects to latest
+        svt_url = "https://svtplay-dl.se/download/svtplay-dl.exe" 
         
-        gum_style("Downloading latest svtplay-dl...", foreground="212")
+        gum_style("Downloading latest svtplay-dl (Windows)...", foreground="212")
         try:
             urllib.request.urlretrieve(svt_url, os.path.join(user_bin, svt_remote))
-            if system != "Windows":
-                os.chmod(os.path.join(user_bin, svt_remote), 0o755)
             gum_style("✔ svtplay-dl updated.", foreground="212")
         except Exception as e:
             gum_style(f"❌ Failed to update svtplay-dl: {e}", foreground="196")
+            gum_style("Try running: pip install --upgrade svtplay-dl", foreground="240")
     else:
-         gum_style("ℹ️  svtplay-dl update on Mac requires manual handling (zip).", foreground="240")
+         gum_style("ℹ️  To update svtplay-dl on Linux/macOS, please run:", foreground="240")
+         print("   pip install --upgrade svtplay-dl")
+         print("   OR")
+         print("   brew upgrade svtplay-dl (if installed via Homebrew)")
 
     print("\n")
     gum_style("Done. Restart the program to use the new versions.", foreground="212")
