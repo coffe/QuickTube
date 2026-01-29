@@ -30,3 +30,7 @@ Thumbs.db
 
 # Configuration
 config.json
+
+# Development Context (Local only)
+PROJECT_CONTEXT.md
+todo.md
