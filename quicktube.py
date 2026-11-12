@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 
-__version__ = "1.0"
+__version__ = "1.0.1"
 
 # Third-party libraries for UI (replacing gum)
 try:
