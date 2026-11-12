@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 # Third-party libraries for UI (replacing gum)
 try:
@@ -249,6 +249,9 @@ def ytdlp_net_flags():
 def get_ytdlp_base_cmd():
     return ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail", *ytdlp_net_flags()]
 
+# Description (tracklists etc.) into the comment tag players show, plus a .description file beside the audio.
+AUDIO_DESC_FLAGS = ["--parse-metadata", "description:(?s)(?P<meta_comment>.+)", "--write-description"]
+
 def get_mpv_cmd(url, audio_only=False):
     """Construct a robust MPV command with embedded yt-dlp options."""
     cmd = ["mpv", "--force-window"]
@@ -442,7 +445,7 @@ def handle_youtube(url):
         elif action == "Download Full Playlist (Audio)":
             ui_print("Starting download of full playlist (audio)...", style="cyan")
             cmd.extend([
-                "-f", "bestaudio/best", "-x", "--audio-format", "opus",
+                "-f", "bestaudio/best", "-x", "--audio-format", "opus", *AUDIO_DESC_FLAGS,
                 "-o", "%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s",
                 url
             ])
@@ -468,7 +471,7 @@ def handle_youtube(url):
             ui_print("Starting audio download...", style="cyan")
             cmd = get_ytdlp_base_cmd()
             cmd.extend([
-                "-f", "bestaudio/best", "-x", "--audio-format", "opus",
+                "-f", "bestaudio/best", "-x", "--audio-format", "opus", *AUDIO_DESC_FLAGS,
                 "-o", "%(title)s.%(ext)s", url
             ])
             return run_download(cmd)
