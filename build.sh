@@ -26,13 +26,8 @@ pip install pyinstaller
 echo "Compiling QuickTube..."
 pyinstaller --onefile --name quicktube --clean quicktube.py
 
-# Build YTRSS
-echo "Compiling YTRSS..."
-pyinstaller --onefile --name ytrss --add-data "KEYS.md:." --clean ytrss.py
-
 # Organize output
 mkdir -p bin
 cp dist/quicktube bin/
-cp dist/ytrss bin/
 
 echo -e "${GREEN}Build complete! Binaries located in: bin/${NC}"

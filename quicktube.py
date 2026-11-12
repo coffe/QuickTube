@@ -203,13 +203,16 @@ def get_clipboard():
             return ""
     elif shutil.which("wl-paste"):
         res = run_command(["wl-paste"])
-        return res.stdout.strip().replace('\0', '')
+        if res and res.stdout:
+            return res.stdout.strip().replace('\0', '')
     elif shutil.which("xclip"):
         res = run_command(["xclip", "-o", "-selection", "clipboard"])
-        return res.stdout.strip().replace('\0', '')
+        if res and res.stdout:
+            return res.stdout.strip().replace('\0', '')
     elif shutil.which("pbpaste"):
         res = run_command(["pbpaste"])
-        return res.stdout.strip()
+        if res and res.stdout:
+            return res.stdout.strip()
     return ""
 
 def is_valid_url(text):
@@ -223,22 +226,19 @@ def is_valid_url(text):
             return True
     return False
 
-def get_ytdlp_base_cmd():
-    cmd = ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail"]
-    
-    # 1. Network Stability
+def ytdlp_net_flags():
+    """IPv4 + JS engine + cookies: every yt-dlp call needs all three (see YOUTUBE_FIXES.md)."""
+    flags = []
     if FORCE_IPV4:
-        cmd.append("--force-ipv4")
-    
-    # 2. JS Engine (Fixes throttling/signatures)
+        flags.append("--force-ipv4")
     if JS_ENGINE:
-        cmd.extend(["--js-runtime", JS_ENGINE])
-
-    # 3. Auth
+        flags.extend(["--js-runtime", JS_ENGINE])
     if COOKIE_BROWSER:
-        cmd.extend(["--cookies-from-browser", COOKIE_BROWSER])
-    
-    return cmd
+        flags.extend(["--cookies-from-browser", COOKIE_BROWSER])
+    return flags
+
+def get_ytdlp_base_cmd():
+    return ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail", *ytdlp_net_flags()]
 
 def get_mpv_cmd(url, audio_only=False):
     """Construct a robust MPV command with embedded yt-dlp options."""
@@ -289,6 +289,11 @@ def select_cookie_browser():
         ui_print("Cookies disabled.", style="yellow")
     
     save_config()
+
+def run_download(cmd, done_msg="✔ Download complete."):
+    ok = subprocess.run(cmd).returncode == 0
+    ui_print(done_msg if ok else "❌ Download failed.", style="bold green" if ok else "bold red")
+    return "download"
 
 def handle_svtplay(url):
     message = "SVT Play link detected. What do you want to do?"
@@ -347,7 +352,7 @@ def handle_svtplay(url):
 
     elif action == "Download the LAST X episodes (svtplay-dl)":
         count = ui_input("Number of episodes from the end (e.g. 5)...")
-        if count.isdigit():
+        if count and count.isdigit():
             ui_print(f"Downloading the last {count} episodes...", style="cyan")
             res = subprocess.run(["svtplay-dl", "-S", "-M", "-A", "--all-last", count, url])
             success = (res.returncode == 0)
@@ -374,11 +379,7 @@ def handle_svtplay(url):
 def handle_youtube(url):
     # Get info
     with console.status("[bold green]Fetching video info...") as status:
-        info_cmd = ["yt-dlp", "--flat-playlist", "--dump-json", "--no-warnings"]
-        if FORCE_IPV4: info_cmd.append("--force-ipv4")
-        if JS_ENGINE: info_cmd.extend(["--js-runtime", JS_ENGINE])
-        if COOKIE_BROWSER: info_cmd.extend(["--cookies-from-browser", COOKIE_BROWSER])
-        info_cmd.append(url)
+        info_cmd = ["yt-dlp", "--flat-playlist", "--dump-json", "--no-warnings", *ytdlp_net_flags(), url]
         res = run_command(info_cmd)
     
     if not res or res.returncode != 0:
@@ -408,6 +409,7 @@ def handle_youtube(url):
             "Download Full Playlist (Audio)"
         ]
         action = ui_select(choices, message=message)
+        if not action: return
 
         if action == "Stream Full Playlist (Video)":
             cmd = get_mpv_cmd(url, audio_only=False)
@@ -436,9 +438,7 @@ def handle_youtube(url):
                 url
             ])
         
-        subprocess.run(cmd)
-        ui_print("✔ Playlist download complete.", style="bold green")
-        return "download"
+        return run_download(cmd, "✔ Playlist download complete.")
 
     else:
         # Single video
@@ -462,24 +462,11 @@ def handle_youtube(url):
                 "-f", "bestaudio/best", "-x", "--audio-format", "opus",
                 "-o", "%(title)s.%(ext)s", url
             ])
-            subprocess.run(cmd)
-            ui_print("✔ Download complete.", style="bold green")
-            return "download"
+            return run_download(cmd)
 
         elif action == "Download video":
             with console.status("[bold green]Fetching available formats...") as status:
-                # Use get_ytdlp_base_cmd to ensure cookies/ipv4/js options are used for fetching JSON
-                # We slice off the default flags that might conflict with -J or are redundant, 
-                # but actually base_cmd has --no-warnings etc which are fine.
-                # However, base_cmd has --embed-metadata etc which we don't want for -J.
-                # So we manually construct the fetch command but using the globals.
-                
-                fmt_cmd = ["yt-dlp", "-J"]
-                if FORCE_IPV4: fmt_cmd.append("--force-ipv4")
-                if JS_ENGINE: fmt_cmd.extend(["--js-runtime", JS_ENGINE])
-                if COOKIE_BROWSER: fmt_cmd.extend(["--cookies-from-browser", COOKIE_BROWSER])
-                
-                fmt_cmd.append(url)
+                fmt_cmd = ["yt-dlp", "-J", *ytdlp_net_flags(), url]
                 res_fmt = run_command(fmt_cmd)
             
             if not res_fmt: return
@@ -539,10 +526,7 @@ def handle_youtube(url):
             if not has_audio_map.get(format_code, False):
                 final_format += "+bestaudio"
             
-            cmd = ["yt-dlp", "--force-overwrites", "--embed-metadata", "--embed-thumbnail"]
-            if COOKIE_BROWSER:
-                cmd.extend(["--cookies-from-browser", COOKIE_BROWSER])
-            
+            cmd = get_ytdlp_base_cmd()
             cmd.extend([
                 "-f", final_format, 
                 "--merge-output-format", "mp4", 
@@ -550,9 +534,7 @@ def handle_youtube(url):
                 url
             ])
             
-            subprocess.run(cmd)
-            ui_print("✔ Download complete.", style="bold green")
-            return "download"
+            return run_download(cmd)
 
 def update_tools():
     """Download latest versions of tools."""
