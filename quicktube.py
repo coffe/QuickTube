@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# QuickTube: stream and download YouTube and SVT Play links from the terminal.
+# Copyright (C) 2026 coffe. Licensed under the GNU GPL v3 or later, see LICENSE.
 import subprocess
 import shutil
 import sys
@@ -8,6 +10,8 @@ import json
 import platform
 import urllib.request
 from datetime import datetime
+
+__version__ = "1.0"
 
 # Third-party libraries for UI (replacing gum)
 try:
@@ -671,6 +675,9 @@ def main():
             break
 
 if __name__ == "__main__":
+    if "--version" in sys.argv[1:]:
+        print(f"QuickTube {__version__}")
+        sys.exit(0)
     try:
         # Start log session
         try:

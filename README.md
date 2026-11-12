@@ -1,8 +1,8 @@
-# QuickTube 2.0
+# QuickTube
 
 **A modern, terminal-based video downloader and streamer for YouTube and SVT Play.**
 
-QuickTube 2.0 is a robust CLI tool that simplifies interacting with media links. It acts as an interactive wrapper around industry-standard tools like `yt-dlp`, `mpv`, and `svtplay-dl`.
+QuickTube is a robust CLI tool that simplifies interacting with media links. It acts as an interactive wrapper around industry-standard tools like `yt-dlp`, `mpv`, and `svtplay-dl`.
 
 Built with **Python**, **Rich**, and **InquirerPy** for a beautiful and responsive terminal experience.
 
@@ -39,10 +39,14 @@ QuickTube can automatically download and update these binaries for you:
 
 ## 📥 Installation
 
+**Prebuilt binary (Linux x86_64):** download `quicktube` from the [latest release](https://github.com/coffe/QuickTube/releases/latest), then `chmod +x quicktube` and run it. You still need `mpv` and `ffmpeg`.
+
+**From source:**
+
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/yourusername/QuickTube2.0.git
-    cd QuickTube2.0
+    git clone https://github.com/coffe/QuickTube.git
+    cd QuickTube
     ```
 
 2.  **Set up a Virtual Environment (Recommended):**
@@ -87,6 +91,6 @@ python quicktube.py
 ---
 
 ## 📄 License
-MIT
+QuickTube is free software under the [GNU General Public License v3.0 or later](LICENSE).
 
 **⚠️ Disclaimer:** This tool is for personal use and archiving. Please respect the Terms of Service of the content platforms and copyright laws.
