@@ -9,6 +9,7 @@ import re
 import json
 import platform
 import urllib.request
+import zipfile
 from datetime import datetime
 
 __version__ = "1.0"
@@ -106,6 +107,7 @@ def setup_resources():
     paths_to_add = []
     user_bin = get_user_bin_dir()
     paths_to_add.append(user_bin)
+    paths_to_add.append(os.path.join(user_bin, "svtplay-dl"))  # Windows zip layout
     
     if paths_to_add:
         os.environ["PATH"] = os.pathsep.join(paths_to_add) + os.pathsep + os.environ["PATH"]
@@ -189,6 +191,9 @@ def check_dependencies():
         
         if "mpv" in missing_deps or "ffmpeg" in missing_deps:
              ui_print("Critical: 'mpv' and 'ffmpeg' are required for playback/merging.", style="bold red")
+        if platform.system() == "Windows":
+             ui_print("Install with: winget install shinchiro.mpv Gyan.FFmpeg OpenJS.NodeJS.LTS", style="dim")
+             ui_print("then use 'Update tools' for yt-dlp and svtplay-dl.", style="dim")
 
     # Check for JS Engine (Critical for YouTube throttling)
     if not JS_ENGINE:
@@ -200,7 +205,7 @@ def get_clipboard():
     system = platform.system()
     if system == "Windows":
         try:
-            cmd = ["powershell", "-command", "Get-Clipboard"]
+            cmd = ["powershell", "-NoProfile", "-Command", "Get-Clipboard"]
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             return res.stdout.strip()
         except:
@@ -576,21 +581,23 @@ def update_tools():
     except Exception as e:
         ui_print(f"❌ Failed to update yt-dlp: {e}", style="red")
 
-    # --- SVTPLAY-DL ---
-    if system != "Darwin":
-        svt_remote = "svtplay-dl.exe" if system == "Windows" else "svtplay-dl"
-        svt_url = f"https://github.com/spaam/svtplay-dl/releases/latest/download/{svt_remote}"
-        
-        ui_print("Downloading latest svtplay-dl...", style="cyan")
-        try:
-            urllib.request.urlretrieve(svt_url, os.path.join(user_bin, svt_remote))
-            if system != "Windows":
-                os.chmod(os.path.join(user_bin, svt_remote), 0o755)
-            ui_print("✔ svtplay-dl updated.", style="green")
-        except Exception as e:
-            ui_print(f"❌ Failed to update svtplay-dl: {e}", style="red")
-    else:
-         ui_print("ℹ️  svtplay-dl update on Mac requires manual handling (zip).", style="dim")
+    # --- SVTPLAY-DL --- (no GitHub releases; svtplay-dl.se ships a zipapp, and a zip for Windows)
+    ui_print("Downloading latest svtplay-dl...", style="cyan")
+    try:
+        if system == "Windows":
+            zip_path = os.path.join(user_bin, "svtplay-dl-amd64.zip")
+            urllib.request.urlretrieve("https://svtplay-dl.se/download/latest/svtplay-dl-amd64.zip", zip_path)
+            shutil.rmtree(os.path.join(user_bin, "svtplay-dl"), ignore_errors=True)
+            with zipfile.ZipFile(zip_path) as z:
+                z.extractall(user_bin)  # creates svtplay-dl\svtplay-dl.exe
+            os.remove(zip_path)
+        else:
+            svt_local = os.path.join(user_bin, "svtplay-dl")
+            urllib.request.urlretrieve("https://svtplay-dl.se/download/latest/svtplay-dl", svt_local)
+            os.chmod(svt_local, 0o755)  # zipapp, needs python3 on PATH
+        ui_print("✔ svtplay-dl updated.", style="green")
+    except Exception as e:
+        ui_print(f"❌ Failed to update svtplay-dl: {e}", style="red")
 
     print("")
     ui_print("Done. Restart the program to use the new versions.", style="green")

@@ -41,6 +41,12 @@ QuickTube can automatically download and update these binaries for you:
 
 **Prebuilt binary (Linux x86_64):** download `quicktube` from the [latest release](https://github.com/coffe/QuickTube/releases/latest), then `chmod +x quicktube` and run it. You still need `mpv` and `ffmpeg`.
 
+**Prebuilt binary (Windows x64):** download `quicktube.exe` from the same release and run it in Windows Terminal. Install the players first:
+```powershell
+winget install shinchiro.mpv Gyan.FFmpeg OpenJS.NodeJS.LTS
+```
+Then pick **Update tools** in the menu to fetch `yt-dlp` and `svtplay-dl` into `%APPDATA%\QuickTube\bin`.
+
 **From source:**
 
 1.  **Clone the repository:**
