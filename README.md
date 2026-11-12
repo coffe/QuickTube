@@ -1,46 +1,39 @@
-# QuickTube 2.0 Suite
+# QuickTube 2.0
 
-**A comprehensive terminal-based toolkit for YouTube and SVT Play.**
+**A modern, terminal-based video downloader and streamer for YouTube and SVT Play.**
 
-QuickTube 2.0 combines two powerful TUI (Terminal User Interface) tools into a single suite:
-1.  **QuickTube:** A versatile video downloader and streamer.
-2.  **YTRSS:** A minimalist, distraction-free YouTube RSS client.
+QuickTube 2.0 is a robust CLI tool that simplifies interacting with media links. It acts as an interactive wrapper around industry-standard tools like `yt-dlp`, `mpv`, and `svtplay-dl`.
 
-Both tools are built with Python and feature modern, interactive interfaces.
+Built with **Python**, **Rich**, and **InquirerPy** for a beautiful and responsive terminal experience.
 
 ---
 
-## 🚀 Components
+## 🚀 Features
 
-### 1. QuickTube (`quicktube.py`)
-*The Swiss Army Knife for video links.*
-
-*   **Stream & Download:** Instantly stream via `mpv` or download videos/audio using `yt-dlp`.
-*   **SVT Play Support:** Download full series, specific episodes, or stream directly.
-*   **Smart Features:**
-    *   **Clipboard Detection:** Automatically grabs links from your clipboard on startup.
-    *   **Cookie "Borrowing":** Use cookies from your browser (Chrome, Firefox, etc.) to access age-restricted content.
-    *   **Quality Selection:** Interactive menu to choose the best video/audio format.
-
-### 2. YTRSS (`ytrss.py`)
-*The "Algorithm-Free" Subscription Manager.*
-
-*   **Distraction-Free:** Follow your favorite channels without the YouTube homepage.
-*   **RSS-Based:** Fetches feeds asynchronously (blazing fast).
-*   **Dashboard:** View new videos, "Watch Later" queue, and toggle Shorts visibility.
-*   **Integration:** Select a video in YTRSS to instantly play or download it via QuickTube.
-*   **Local Data:** Stores viewing history and subscriptions locally (`~/.config/ytrss/`).
+*   **Smart Clipboard:** Automatically detects URLs when you start the program.
+*   **Interactive Quality Selector:** Choose exactly which resolution and format you want via a sorted table.
+*   **Streaming:** Watch videos instantly in `mpv` without waiting for downloads.
+*   **SVT Play Support:** 
+    *   Download full series or specific episodes.
+    *   Embed subtitles automatically.
+*   **Advanced YouTube Support:**
+    *   **Cookie "Borrowing":** Use cookies from your browser (Chrome, Firefox, Brave, etc.) to bypass age restrictions or throttle.
+    *   **Playlist Handling:** Download or stream entire playlists effortlessly.
+    *   **Metadata Embedding:** Adds thumbnails and metadata to downloaded files.
 
 ---
 
 ## 🛠️ Prerequisites
 
-### External Tools
+### Required External Tools
 Ensure these are installed and in your PATH:
-*   **[mpv](https://mpv.io/)**: Essential for streaming.
-*   **[ffmpeg](https://ffmpeg.org/)**: Required for merging video/audio streams.
+*   **[mpv](https://mpv.io/)**: Essential for streaming playback.
+*   **[ffmpeg](https://ffmpeg.org/)**: Required for merging high-quality video/audio streams.
 
-*(Note: The `quicktube` tool has a built-in helper to download `yt-dlp` and `svtplay-dl` binaries if you don't want to install them system-wide via pip/package manager.)*
+### Auto-Managed Tools
+QuickTube can automatically download and update these binaries for you:
+*   **yt-dlp**
+*   **svtplay-dl**
 
 ---
 
@@ -48,15 +41,14 @@ Ensure these are installed and in your PATH:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/coffe/QuickTube2.0.git
+    git clone https://github.com/yourusername/QuickTube2.0.git
     cd QuickTube2.0
     ```
 
 2.  **Set up a Virtual Environment (Recommended):**
     ```bash
     python3 -m venv .venv
-    source .venv/bin/activate  # Linux/macOS
-    # .venv\Scripts\activate   # Windows
+    source .venv/bin/activate
     ```
 
 3.  **Install Python Dependencies:**
@@ -66,42 +58,35 @@ Ensure these are installed and in your PATH:
 
 ---
 
-## 🎮 How to Use
+## 🎮 Usage
 
-### Running QuickTube (Downloader)
+Run the program:
 ```bash
 python quicktube.py
 ```
-*   **Tip:** Copy a URL to your clipboard before running for instant action.
-*   **Controls:** Arrow keys to navigate, `Enter` to select, `Esc` to go back.
 
-### Running YTRSS (Feed Reader)
-```bash
-python ytrss.py
-```
-*   **Navigation:** `↑`/`↓` to browse, `Type` to filter/search.
-*   **Actions:** `Enter` on a video to Play (opens QuickTube), Add to Watch Later, etc.
-*   **Shortcuts:**
-    *   `[ R ]` Refresh feeds
-    *   `[ S ]` Toggle Shorts
-    *   `[ + ]` Add channel (via RSS URL)
-    *   `[ M ]` Mark visible as seen
+### Workflow
+1.  **Copy a link** (YouTube or SVT Play) to your clipboard.
+2.  **Run QuickTube.** It will ask if you want to use the detected link.
+3.  **Select Action:** Stream, Download Video, or Download Audio.
+4.  **Enjoy!**
+
+### Controls
+*   **Arrow Keys:** Navigate menus.
+*   **Enter:** Confirm selection.
+*   **Esc:** Go back / Cancel.
+*   **Type:** Filter lists (where applicable).
 
 ---
 
 ## ⚙️ Configuration
 
-*   **QuickTube:**
-    *   Updates tools to user's local bin directory.
-    *   Detects browser cookies for authentication.
-*   **YTRSS:**
-    *   Config stored in `~/.config/ytrss/`.
-    *   Feeds: `ytRss.opml` (Standard OPML format).
-    *   Database: `ytrss.db` (SQLite).
+*   **Config Location:** `~/.config/quicktube/config.json`
+*   **Browser Cookies:** You can select which browser to borrow cookies from inside the application (Main Menu -> Select cookie browser).
 
 ---
 
 ## 📄 License
 MIT
 
-**⚠️ Disclaimer:** This project is for educational purposes. Please respect the Terms of Service of the respective platforms and copyright laws.
+**⚠️ Disclaimer:** This tool is for personal use and archiving. Please respect the Terms of Service of the content platforms and copyright laws.
