@@ -34,3 +34,5 @@ config.json
 # Development Context (Local only)
 PROJECT_CONTEXT.md
 todo.md
+README.md_*
+bashrc-venv.md
