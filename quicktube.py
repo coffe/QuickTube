@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 # Third-party libraries for UI (replacing gum)
 try:
@@ -575,6 +575,11 @@ def update_tools():
     ytdlp_url = f"https://github.com/yt-dlp/yt-dlp/releases/latest/download/{ytdlp_filename_remote}"
     ytdlp_local = "yt-dlp.exe" if system == "Windows" else "yt-dlp"
     
+    # svtplay-dl.se answers 403 to urllib's default "Python-urllib" User-Agent.
+    opener = urllib.request.build_opener()
+    opener.addheaders = [("User-Agent", f"QuickTube/{__version__}")]
+    urllib.request.install_opener(opener)
+
     ui_print("Downloading latest yt-dlp...", style="cyan")
     try:
         urllib.request.urlretrieve(ytdlp_url, os.path.join(user_bin, ytdlp_local))
