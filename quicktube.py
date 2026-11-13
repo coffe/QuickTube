@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 # Third-party libraries for UI (replacing gum)
 try:
@@ -191,9 +191,11 @@ def check_dependencies():
         
         if "mpv" in missing_deps or "ffmpeg" in missing_deps:
              ui_print("Critical: 'mpv' and 'ffmpeg' are required for playback/merging.", style="bold red")
-        if platform.system() == "Windows":
+        if platform.system() == "Windows" and ("mpv" in missing_deps or "ffmpeg" in missing_deps):
              ui_print("Install with: winget install shinchiro.mpv Gyan.FFmpeg OpenJS.NodeJS.LTS", style="dim")
-             ui_print("then use 'Update tools' for yt-dlp and svtplay-dl.", style="dim")
+        # QuickTube can fetch these two itself, so offer it right away (first run).
+        if "yt-dlp" in missing_deps or "svtplay-dl" in missing_deps:
+            update_tools()
 
     # Check for JS Engine (Critical for YouTube throttling)
     if not JS_ENGINE:
@@ -555,7 +557,7 @@ def update_tools():
     print("")
     ui_print(f"Tools will be installed/updated in: {user_bin}", style="dim")
     
-    choice = ui_select(["Yes, update", "Cancel"], message="Do you want to download the latest yt-dlp and svtplay-dl?")
+    choice = ui_select(["Yes, update", "Cancel"], message="Download/install the latest yt-dlp and svtplay-dl?")
     if choice != "Yes, update":
         return
 
@@ -608,7 +610,7 @@ def update_tools():
         ui_print(f"❌ Failed to update svtplay-dl: {e}", style="red")
 
     print("")
-    ui_print("Done. Restart the program to use the new versions.", style="green")
+    ui_print("Done.", style="green")  # user_bin is already on PATH, no restart needed
     input("Press Enter to continue...")
 
 
