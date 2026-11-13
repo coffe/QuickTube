@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 # Third-party libraries for UI (replacing gum)
 try:
@@ -45,17 +45,20 @@ CONFIG_DIR = os.path.expanduser("~/.config/quicktube")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 COOKIE_BROWSER = None
+MAX_HEIGHT = None  # max video height in pixels, None = best available
+RESOLUTIONS = [2160, 1440, 1080, 720, 540, 480, 360, 288, 240]
 FORCE_IPV4 = platform.system() == "Linux"
 JS_ENGINE = None
 
 def load_config():
     """Load configuration from JSON file."""
-    global COOKIE_BROWSER
+    global COOKIE_BROWSER, MAX_HEIGHT
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
                 config = json.load(f)
                 COOKIE_BROWSER = config.get("cookie_browser")
+                MAX_HEIGHT = config.get("max_height")
         except Exception as e:
             write_log(f"Failed to load config: {e}", log_to_console=False)
 
@@ -64,7 +67,8 @@ def save_config():
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
         config = {
-            "cookie_browser": COOKIE_BROWSER
+            "cookie_browser": COOKIE_BROWSER,
+            "max_height": MAX_HEIGHT
         }
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=4)
@@ -249,7 +253,17 @@ def ytdlp_net_flags():
     return flags
 
 def get_ytdlp_base_cmd():
-    return ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail", *ytdlp_net_flags()]
+    cmd = ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail", *ytdlp_net_flags()]
+    if MAX_HEIGHT:
+        cmd += ["-S", f"res:{MAX_HEIGHT}"]  # prefer the largest format not above the limit
+    return cmd
+
+def svt_cmd(*args):
+    """svtplay-dl command limited to MAX_HEIGHT (it matches exact heights, so list every allowed one)."""
+    cmd = ["svtplay-dl"]
+    if MAX_HEIGHT:
+        cmd += ["--resolution", ",".join(str(h) for h in RESOLUTIONS if h <= MAX_HEIGHT)]
+    return cmd + list(args)
 
 # Description (tracklists etc.) into the comment tag players show, plus a .description file beside the audio.
 AUDIO_DESC_FLAGS = ["--parse-metadata", "description:(?s)(?P<meta_comment>.+)", "--write-description"]
@@ -277,6 +291,9 @@ def get_mpv_cmd(url, audio_only=False):
     
     if COOKIE_BROWSER:
         raw_opts.append(f"cookies-from-browser={COOKIE_BROWSER}")
+
+    if MAX_HEIGHT and not audio_only:
+        raw_opts.append(f"format-sort=res:{MAX_HEIGHT}")
     
     if raw_opts:
         cmd.append(f"--ytdl-raw-options={','.join(raw_opts)}")
@@ -304,6 +321,17 @@ def select_cookie_browser():
     
     save_config()
 
+def select_max_resolution():
+    global MAX_HEIGHT
+    current = f"{MAX_HEIGHT}p" if MAX_HEIGHT else "no limit"
+    choices = [Choice(value=0, name="Best available (no limit)")] + [Choice(value=h, name=f"{h}p") for h in RESOLUTIONS]
+    choice = ui_select(choices, message=f"Max video resolution (now: {current}):")
+    if choice is None:  # cancelled, keep current
+        return
+    MAX_HEIGHT = choice or None
+    ui_print(f"Max resolution: {f'{MAX_HEIGHT}p' if MAX_HEIGHT else 'no limit'}", style="green")
+    save_config()
+
 def run_download(cmd, done_msg="✔ Download complete."):
     ok = subprocess.run(cmd).returncode == 0
     ui_print(done_msg if ok else "❌ Download failed.", style="bold green" if ok else "bold red")
@@ -329,12 +357,12 @@ def handle_svtplay(url):
 
     if action == "Download (Best quality + Subtitles)":
         ui_print("Starting download from SVT Play...", style="cyan")
-        res = subprocess.run(["svtplay-dl", "-S", "-M", url])
+        res = subprocess.run(svt_cmd("-S", "-M", url))
         success = (res.returncode == 0)
 
     elif action == "Download Whole Series (-A)":
         ui_print("Starting download of entire series...", style="cyan")
-        res = subprocess.run(["svtplay-dl", "-S", "-M", "-A", url])
+        res = subprocess.run(svt_cmd("-S", "-M", "-A", url))
         success = (res.returncode == 0)
 
     elif action == "Download Whole Series (yt-dlp)":
@@ -368,7 +396,7 @@ def handle_svtplay(url):
         count = ui_input("Number of episodes from the end (e.g. 5)...")
         if count and count.isdigit():
             ui_print(f"Downloading the last {count} episodes...", style="cyan")
-            res = subprocess.run(["svtplay-dl", "-S", "-M", "-A", "--all-last", count, url])
+            res = subprocess.run(svt_cmd("-S", "-M", "-A", "--all-last", count, url))
             success = (res.returncode == 0)
         else:
             ui_print("Invalid number specified.", style="red")
@@ -497,6 +525,7 @@ def handle_youtube(url):
                 if f.get("vcodec") == "none": continue
                 height = f.get("height") or 0
                 if height == 0: continue
+                if MAX_HEIGHT and height > MAX_HEIGHT: continue
                 
                 current_fps = f.get("fps") or 0
                 current_size = f.get("filesize") or f.get("filesize_approx") or 0
@@ -657,7 +686,7 @@ def main():
 
         if not url:
             # Main Menu
-            choice = ui_select(["Paste link", "Update tools", "Select cookie browser", "Exit"], message="Main Menu")
+            choice = ui_select(["Paste link", "Update tools", "Select cookie browser", "Set max resolution", "Exit"], message="Main Menu")
             
             if choice is None or choice == "Exit":
                 break
@@ -666,6 +695,9 @@ def main():
                 continue
             elif choice == "Select cookie browser":
                 select_cookie_browser()
+                continue
+            elif choice == "Set max resolution":
+                select_max_resolution()
                 continue
             elif choice == "Paste link":
                 # Force input on next loop
@@ -680,7 +712,7 @@ def main():
             last_action = handle_youtube(url)
 
         print("")
-        next_step = ui_select(["New link", "Update tools", "Select cookie browser", "Exit"])
+        next_step = ui_select(["New link", "Update tools", "Select cookie browser", "Set max resolution", "Exit"])
         
         if next_step is None or next_step == "Exit":
             break
@@ -688,6 +720,8 @@ def main():
             update_tools()
         elif next_step == "Select cookie browser":
             select_cookie_browser()
+        elif next_step == "Set max resolution":
+            select_max_resolution()
         elif next_step != "New link":
             break
 

@@ -93,6 +93,7 @@ python quicktube.py
 
 *   **Config Location:** `~/.config/quicktube/config.json`
 *   **Browser Cookies:** You can select which browser to borrow cookies from inside the application (Main Menu -> Select cookie browser).
+*   **Max Resolution:** Cap the video resolution for downloads and streaming, YouTube and SVT Play alike (Main Menu -> Set max resolution). Saved in the config file.
 
 ---
 
