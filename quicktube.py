@@ -3,6 +3,7 @@
 # Copyright (C) 2026 coffe. Licensed under the GNU GPL v3 or later, see LICENSE.
 import subprocess
 import shutil
+import glob
 import sys
 import os
 import re
@@ -12,7 +13,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 # Third-party libraries for UI (replacing gum)
 try:
@@ -46,19 +47,22 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 COOKIE_BROWSER = None
 MAX_HEIGHT = None  # max video height in pixels, None = best available
+CODEC_PREF = None  # best codec the GPU decodes in hardware ("av1"/"vp9"/"h264"), None = yt-dlp default
+CODEC_RANK = {"h264": 0, "vp9": 1, "av1": 2}
 RESOLUTIONS = [2160, 1440, 1080, 720, 540, 480, 360, 288, 240]
 FORCE_IPV4 = platform.system() == "Linux"
 JS_ENGINE = None
 
 def load_config():
     """Load configuration from JSON file."""
-    global COOKIE_BROWSER, MAX_HEIGHT
+    global COOKIE_BROWSER, MAX_HEIGHT, CODEC_PREF
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
                 config = json.load(f)
                 COOKIE_BROWSER = config.get("cookie_browser")
                 MAX_HEIGHT = config.get("max_height")
+                CODEC_PREF = config.get("codec_pref")
         except Exception as e:
             write_log(f"Failed to load config: {e}", log_to_console=False)
 
@@ -68,7 +72,8 @@ def save_config():
         os.makedirs(CONFIG_DIR, exist_ok=True)
         config = {
             "cookie_browser": COOKIE_BROWSER,
-            "max_height": MAX_HEIGHT
+            "max_height": MAX_HEIGHT,
+            "codec_pref": CODEC_PREF
         }
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=4)
@@ -252,10 +257,19 @@ def ytdlp_net_flags():
         flags.extend(["--cookies-from-browser", COOKIE_BROWSER])
     return flags
 
+def format_sort():
+    """yt-dlp -S value: largest format not above MAX_HEIGHT, then a codec the GPU decodes (saves power)."""
+    fields = []
+    if MAX_HEIGHT:
+        fields.append(f"res:{MAX_HEIGHT}")
+    if CODEC_PREF and CODEC_PREF != "av1":  # av1 is already yt-dlp's first choice
+        fields.append(f"vcodec:{CODEC_PREF}")  # this codec or simpler
+    return ",".join(fields)
+
 def get_ytdlp_base_cmd():
     cmd = ["yt-dlp", "--no-warnings", "--force-overwrites", "--embed-metadata", "--embed-thumbnail", *ytdlp_net_flags()]
-    if MAX_HEIGHT:
-        cmd += ["-S", f"res:{MAX_HEIGHT}"]  # prefer the largest format not above the limit
+    if format_sort():
+        cmd += ["-S", format_sort()]
     return cmd
 
 def svt_cmd(*args):
@@ -271,6 +285,8 @@ AUDIO_DESC_FLAGS = ["--parse-metadata", "description:(?s)(?P<meta_comment>.+)", 
 def get_mpv_cmd(url, audio_only=False):
     """Construct a robust MPV command with embedded yt-dlp options."""
     cmd = ["mpv", "--force-window"]
+    if CODEC_PREF:
+        cmd.append("--hwdec=auto-safe")  # mpv decodes in software unless told otherwise
     if audio_only:
         cmd.append("--no-video")
     
@@ -292,8 +308,8 @@ def get_mpv_cmd(url, audio_only=False):
     if COOKIE_BROWSER:
         raw_opts.append(f"cookies-from-browser={COOKIE_BROWSER}")
 
-    if MAX_HEIGHT and not audio_only:
-        raw_opts.append(f"format-sort=res:{MAX_HEIGHT}")
+    if format_sort() and not audio_only:
+        raw_opts.append(f"format-sort=[{format_sort()}]")  # [] quotes the commas for mpv
     
     if raw_opts:
         cmd.append(f"--ytdl-raw-options={','.join(raw_opts)}")
@@ -331,6 +347,117 @@ def select_max_resolution():
     MAX_HEIGHT = choice or None
     ui_print(f"Max resolution: {f'{MAX_HEIGHT}p' if MAX_HEIGHT else 'no limit'}", style="green")
     save_config()
+
+def yt_codec(vcodec):
+    """Map a yt-dlp vcodec string (avc1.640028, vp09.00..., av01...) to h264/vp9/av1, None if other."""
+    v = (vcodec or "").lower()
+    if v.startswith(("avc", "h264")): return "h264"
+    if v.startswith(("vp09", "vp9")): return "vp9"
+    if v.startswith(("av01", "av1")): return "av1"
+    return None
+
+def codec_ok(f):
+    """True if the GPU decodes this format's video codec (always True without a preference)."""
+    c = yt_codec(f.get("vcodec"))
+    return not CODEC_PREF or (c is not None and CODEC_RANK[c] <= CODEC_RANK[CODEC_PREF])
+
+def codec_from_vainfo(text):
+    """Best codec VA-API can decode, from `vainfo` output."""
+    best = None
+    for line in text.splitlines():
+        if "VAEntrypointVLD" not in line: continue
+        for key, codec in (("VAProfileH264", "h264"), ("VAProfileVP9", "vp9"), ("VAProfileAV1", "av1")):
+            if key in line and (best is None or CODEC_RANK[codec] > CODEC_RANK[best]):
+                best = codec
+    return best
+
+def codec_from_gpu_name(name):
+    """Hardware decode guess from a GPU or CPU name. shortcut: hand table, add cards when someone reports a miss."""
+    n = name.lower()
+    if "nvidia" in n or "geforce" in n or "rtx" in n or "gtx" in n:
+        m = re.search(r"rtx\s*(\d{2})", n)
+        if m and int(m.group(1)) >= 30: return "av1"
+        if re.search(r"rtx\s*20|gtx\s*1[06]", n): return "vp9"
+        return "h264"
+    if "amd" in n or "radeon" in n or "ryzen" in n:
+        m = re.search(r"rx\s*(\d)\d{3}", n)
+        if m: return "av1" if int(m.group(1)) >= 6 else "vp9"
+        if re.search(r"radeon\s*(\d)\d0m", n): return "av1"  # 680M/780M/890M iGPUs
+        if re.search(r"ryzen\s*\d\s*(\d)\d{3}", n):  # APU: Ryzen 6000+ has RDNA2
+            return "av1" if int(re.search(r"ryzen\s*\d\s*(\d)", n).group(1)) >= 6 else "vp9"
+        return "h264"  # Polaris (RX 480/580) and Vega cards: no full VP9 decode
+    if "intel" in n or re.search(r"\bi[3579]-", n):
+        if re.search(r"core\s*ultra|arc|\bn[123]\d{2}\b|iris xe", n): return "av1"
+        m = re.search(r"i[3579]-(\d{4,5})", n)
+        if m:
+            digits = m.group(1)  # 6500U = gen 6, 10510U / 1035G1 / 1235U = gen 10-12
+            gen = int(digits[:2]) if len(digits) == 5 or digits[0] == "1" else int(digits[0])
+            return "av1" if gen >= 11 else "vp9" if gen >= 7 else "h264"
+        return "h264"
+    return None
+
+def detect_hardware():
+    """Return (is_laptop, codec, how). Reads only user-readable info, never needs root."""
+    system = platform.system()
+    names = []
+    is_laptop = False
+    if system == "Linux":
+        for t in glob.glob("/sys/class/power_supply/*/type"):
+            try:
+                is_laptop |= open(t).read().strip() == "Battery"
+            except OSError:
+                pass
+        if shutil.which("vainfo"):
+            res = run_command(["vainfo"])
+            codec = codec_from_vainfo((res.stdout or "") if res else "")
+            if codec:
+                return is_laptop, codec, "vainfo"
+        if shutil.which("lspci"):
+            res = run_command(["lspci"])
+            names += [l for l in ((res.stdout or "") if res else "").splitlines() if re.search(r"VGA|3D|Display", l)]
+        try:
+            names += [l.split(":", 1)[1] for l in open("/proc/cpuinfo") if l.startswith("model name")][:1]
+        except OSError:
+            pass
+    elif system == "Windows":
+        ps = ("$b=@(Get-CimInstance Win32_Battery).Count;"
+              "$g=@(Get-CimInstance Win32_VideoController|%{$_.Name})+@(Get-CimInstance Win32_Processor|%{$_.Name});"
+              "Write-Output $b; $g")
+        res = run_command(["powershell", "-NoProfile", "-Command", ps])
+        lines = [l.strip() for l in ((res.stdout or "") if res else "").splitlines() if l.strip()]
+        if lines:
+            is_laptop = lines[0] != "0"
+            names = lines[1:]
+    guesses = [c for c in (codec_from_gpu_name(n) for n in names) if c]
+    if not guesses:
+        return is_laptop, "h264", "fallback (unknown GPU)"
+    # laptop: the weakest chip is usually the one that runs on battery; desktop: the best one
+    pick = min if is_laptop else max
+    return is_laptop, pick(guesses, key=CODEC_RANK.get), "GPU name"
+
+def optimize_for_computer():
+    global CODEC_PREF, MAX_HEIGHT
+    ui_print("Checking this computer...", style="cyan")
+    is_laptop, codec, how = detect_hardware()
+    new_height = MAX_HEIGHT
+    if is_laptop and (not MAX_HEIGHT or MAX_HEIGHT > 1080):
+        new_height = 1080
+    ui_print(
+        f"Type: {'laptop (battery)' if is_laptop else 'desktop'}\n"
+        f"Hardware video decode: up to {codec.upper()} (from {how})\n\n"
+        f"Suggestion:\n"
+        f"  Prefer codec: {codec.upper()} or simpler, and let mpv decode on the GPU\n"
+        f"  Max resolution: {f'{new_height}p' if new_height else 'no limit'}",
+        style="magenta", border=True)
+    choice = ui_select(["Use these settings", "Reset to defaults", "Cancel"], message="Apply?")
+    if choice == "Use these settings":
+        CODEC_PREF, MAX_HEIGHT = codec, new_height
+    elif choice == "Reset to defaults":
+        CODEC_PREF, MAX_HEIGHT = None, None
+    else:
+        return
+    save_config()
+    ui_print("Settings saved.", style="green")
 
 def run_download(cmd, done_msg="✔ Download complete."):
     ok = subprocess.run(cmd).returncode == 0
@@ -534,10 +661,8 @@ def handle_youtube(url):
                     unique_resolutions[height] = f
                 else:
                     existing = unique_resolutions[height]
-                    existing_fps = existing.get("fps") or 0
-                    if current_fps > existing_fps:
+                    if (codec_ok(f), current_fps) > (codec_ok(existing), existing.get("fps") or 0):
                          unique_resolutions[height] = f
-                    # Add more replacement logic here if needed (e.g. bitrate)
 
             table_rows = []
             has_audio_map = {}
@@ -686,7 +811,7 @@ def main():
 
         if not url:
             # Main Menu
-            choice = ui_select(["Paste link", "Update tools", "Select cookie browser", "Set max resolution", "Exit"], message="Main Menu")
+            choice = ui_select(["Paste link", "Update tools", "Select cookie browser", "Set max resolution", "Optimize for this computer", "Exit"], message="Main Menu")
             
             if choice is None or choice == "Exit":
                 break
@@ -698,6 +823,9 @@ def main():
                 continue
             elif choice == "Set max resolution":
                 select_max_resolution()
+                continue
+            elif choice == "Optimize for this computer":
+                optimize_for_computer()
                 continue
             elif choice == "Paste link":
                 # Force input on next loop
@@ -712,7 +840,7 @@ def main():
             last_action = handle_youtube(url)
 
         print("")
-        next_step = ui_select(["New link", "Update tools", "Select cookie browser", "Set max resolution", "Exit"])
+        next_step = ui_select(["New link", "Update tools", "Select cookie browser", "Set max resolution", "Optimize for this computer", "Exit"])
         
         if next_step is None or next_step == "Exit":
             break
@@ -722,6 +850,8 @@ def main():
             select_cookie_browser()
         elif next_step == "Set max resolution":
             select_max_resolution()
+        elif next_step == "Optimize for this computer":
+            optimize_for_computer()
         elif next_step != "New link":
             break
 

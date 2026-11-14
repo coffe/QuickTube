@@ -94,6 +94,7 @@ python quicktube.py
 *   **Config Location:** `~/.config/quicktube/config.json`
 *   **Browser Cookies:** You can select which browser to borrow cookies from inside the application (Main Menu -> Select cookie browser).
 *   **Max Resolution:** Cap the video resolution for downloads and streaming, YouTube and SVT Play alike (Main Menu -> Set max resolution). Saved in the config file.
+*   **Optimize for this computer:** Checks for a battery and which video codecs the GPU decodes in hardware (VA-API via `vainfo` on Linux, GPU name on Windows; no admin rights needed). It suggests a codec (AV1, VP9 or H.264) and, on laptops, a 1080p cap, and applies them only after you confirm. With a codec set, mpv also uses hardware decoding (`--hwdec=auto-safe`), which saves battery.
 
 ---
 
